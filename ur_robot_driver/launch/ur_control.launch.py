@@ -55,7 +55,7 @@ from launch.substitutions import (
 
 _SIM_ARGUMENT_MAP = {
     "ur_type": "-m",
-    "robot_ip": "-a",
+    "robot_ip": "-i",
     "simulation_version": "-v"
 }
 
