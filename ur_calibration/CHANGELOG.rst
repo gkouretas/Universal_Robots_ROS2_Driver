@@ -2,6 +2,15 @@
 Changelog for package ur_calibration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.5.1 (2024-12-21)
+------------------
+
+2.5.0 (2024-12-18)
+------------------
+* Update package maintainers (backport of `#1203 <https://github.com/UniversalRobots/Universal_Robots_ROS2_Driver/issues/1203>`_)
+* Initialize segments in constructor of DHRobot in calibration.hpp (backport of `#1197 <https://github.com/UniversalRobots/Universal_Robots_ROS2_Driver/issues/1197>`_)
+* Contributors: mergify[bot]
+
 2.2.16 (2024-10-28)
 -------------------
 
