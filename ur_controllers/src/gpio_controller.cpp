@@ -99,6 +99,10 @@ controller_interface::InterfaceConfiguration GPIOController::command_interface_c
 
   config.names.emplace_back(tf_prefix + "gpio/analog_output_domain_cmd");
 
+  // Force mode parameters
+  config.names.emplace_back(tf_prefix + "force_mode_params/force_mode_params_cmd");
+  config.names.emplace_back(tf_prefix + "force_mode_params/force_mode_params_async_success");
+
   return config;
 }
 
@@ -317,6 +321,11 @@ ur_controllers::GPIOController::on_activate(const rclcpp_lifecycle::State& /*pre
     tare_sensor_srv_ = get_node()->create_service<std_srvs::srv::Trigger>(
         "~/zero_ftsensor",
         std::bind(&GPIOController::zeroFTSensor, this, std::placeholders::_1, std::placeholders::_2));
+  
+    set_force_mode_params_srv_ = get_node()->create_service<ur_msgs::srv::SetForceModeParams>(
+        "~/set_force_mode_params",
+        std::bind(&GPIOController::setForceModeParams, this, std::placeholders::_1, std::placeholders::_2));
+
   } catch (...) {
     return LifecycleNodeInterface::CallbackReturn::ERROR;
   }
@@ -564,6 +573,10 @@ bool GPIOController::zeroFTSensor(std_srvs::srv::Trigger::Request::SharedPtr /*r
 
   return true;
 }
+
+// TODO(george): force mode params function
+bool GPIOController::setForceModeParams(ur_msgs::srv::SetForceModeParams::Request::SharedPtr /*req*/,
+                                        ur_msgs::srv::SetForceModeParams::Response::SharedPtr resp) { return false; }
 
 void GPIOController::initMsgs()
 {

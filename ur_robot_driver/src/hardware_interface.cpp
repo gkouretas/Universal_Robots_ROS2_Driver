@@ -313,6 +313,12 @@ std::vector<hardware_interface::CommandInterface> URPositionHardwareInterface::e
   command_interfaces.emplace_back(hardware_interface::CommandInterface(
       tf_prefix + "zero_ftsensor", "zero_ftsensor_async_success", &zero_ftsensor_async_success_));
 
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + "force_mode_params", "force_mode_params_cmd", &force_mode_params_cmd_));
+  
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + "force_mode_params", "force_mode_params_async_success", &force_mode_params_async_success_));
+
   return command_interfaces;
 }
 
@@ -626,6 +632,7 @@ hardware_interface::return_type URPositionHardwareInterface::read(const rclcpp::
       resend_robot_program_cmd_ = NO_NEW_CMD_;
       zero_ftsensor_cmd_ = NO_NEW_CMD_;
       hand_back_control_cmd_ = NO_NEW_CMD_;
+      force_mode_params_cmd_ = NO_NEW_CMD_;
       initialized_ = true;
     }
 
@@ -757,6 +764,11 @@ void URPositionHardwareInterface::checkAsyncIO()
   if (!std::isnan(zero_ftsensor_cmd_) && ur_driver_ != nullptr) {
     zero_ftsensor_async_success_ = ur_driver_->zeroFTSensor();
     zero_ftsensor_cmd_ = NO_NEW_CMD_;
+  }
+
+  if (!std::isnan(force_mode_params_cmd_) && ur_driver_ != nullptr) {
+    force_mode_params_async_success_ = ur_driver_->zeroFTSensor();
+    force_mode_params_cmd_ = NO_NEW_CMD_;
   }
 }
 
