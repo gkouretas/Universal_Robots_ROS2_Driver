@@ -441,9 +441,7 @@ def launch_setup(context, *args, **kwargs):
                 urscript_interface,
                 controller_stopper_node,
                 robot_state_publisher_node,
-                rviz_node,
-                initial_joint_controller_spawner_stopped,
-                initial_joint_controller_spawner_started
+                rviz_node
             ] + controller_spawners
         )
     )
