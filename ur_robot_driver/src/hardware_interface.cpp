@@ -368,9 +368,6 @@ std::vector<hardware_interface::CommandInterface> URPositionHardwareInterface::e
       tf_prefix + "zero_ftsensor", "zero_ftsensor_async_success", &zero_ftsensor_async_success_));
 
   command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      tf_prefix + "force_mode_params", "force_mode_params_cmd", &force_mode_params_cmd_));
-
-  command_interfaces.emplace_back(hardware_interface::CommandInterface(
       tf_prefix + "force_mode_params", "force_mode_params_damping", &force_mode_damping_dynamic_));
 
   command_interfaces.emplace_back(hardware_interface::CommandInterface(
@@ -738,7 +735,6 @@ hardware_interface::return_type URPositionHardwareInterface::read(const rclcpp::
       resend_robot_program_cmd_ = NO_NEW_CMD_;
       zero_ftsensor_cmd_ = NO_NEW_CMD_;
       hand_back_control_cmd_ = NO_NEW_CMD_;
-      force_mode_params_cmd_ = NO_NEW_CMD_;
       force_mode_disable_cmd_ = NO_NEW_CMD_;
       freedrive_mode_abort_ = NO_NEW_CMD_;
       freedrive_mode_enable_ = NO_NEW_CMD_;
@@ -892,11 +888,12 @@ void URPositionHardwareInterface::checkAsyncIO()
     zero_ftsensor_cmd_ = NO_NEW_CMD_;
   }
 
-  if (!std::isnan(force_mode_params_cmd_) && !std::isnan(force_mode_damping_dynamic_) &&
-      !std::isnan(force_mode_gain_scaling_dynamic_) && ur_driver_ != nullptr) {
+  if (!std::isnan(force_mode_damping_dynamic_) && !std::isnan(force_mode_gain_scaling_dynamic_) &&
+      ur_driver_ != nullptr) {
     force_mode_params_async_success_ =
         ur_driver_->setForceModeParams(force_mode_damping_dynamic_, force_mode_gain_scaling_dynamic_);
-    force_mode_params_cmd_ = NO_NEW_CMD_;
+    force_mode_damping_dynamic_ = NO_NEW_CMD_;
+    force_mode_gain_scaling_dynamic_ = NO_NEW_CMD_;
   }
 
   if (!std::isnan(freedrive_mode_enable_) && ur_driver_ != nullptr) {

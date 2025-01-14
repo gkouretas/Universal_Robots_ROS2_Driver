@@ -100,7 +100,8 @@ controller_interface::InterfaceConfiguration GPIOController::command_interface_c
   config.names.emplace_back(tf_prefix + "gpio/analog_output_domain_cmd");
 
   // Force mode parameters
-  config.names.emplace_back(tf_prefix + "force_mode_params/force_mode_params_cmd");
+  config.names.emplace_back(tf_prefix + "force_mode_params/force_mode_params_damping");
+  config.names.emplace_back(tf_prefix + "force_mode_params/force_mode_params_gain_scaling");
   config.names.emplace_back(tf_prefix + "force_mode_params/force_mode_params_async_success");
 
   return config;
