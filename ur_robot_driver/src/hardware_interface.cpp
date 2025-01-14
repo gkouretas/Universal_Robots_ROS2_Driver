@@ -883,8 +883,9 @@ void URPositionHardwareInterface::checkAsyncIO()
     zero_ftsensor_cmd_ = NO_NEW_CMD_;
   }
 
-  if (!std::isnan(force_mode_params_cmd_) && ur_driver_ != nullptr) {
-    force_mode_params_async_success_ = ur_driver_->zeroFTSensor();
+  if (!std::isnan(force_mode_params_cmd_) && !std::isnan(force_mode_damping_) &&
+      !std::isnan(force_mode_gain_scaling_) && ur_driver_ != nullptr) {
+    force_mode_params_async_success_ = ur_driver_->setForceModeParams(force_mode_damping_, force_mode_gain_scaling_);
     force_mode_params_cmd_ = NO_NEW_CMD_;
   }
 
