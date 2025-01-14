@@ -82,9 +82,9 @@ enum CommandInterfaces
   HAND_BACK_CONTROL_CMD = 33,
   HAND_BACK_CONTROL_ASYNC_SUCCESS = 34,
   ANALOG_OUTPUTS_DOMAIN = 35,
-  FORCE_MODE_PARAMS_DAMPING = 36,
-  FORCE_MODE_PARAMS_GAIN_SCALING = 37,
-  FORCE_MODE_PARAMS_ASYNC_SUCCESS = 38
+  // FORCE_MODE_PARAMS_DAMPING = 36,
+  // FORCE_MODE_PARAMS_GAIN_SCALING = 37,
+  // FORCE_MODE_PARAMS_ASYNC_SUCCESS = 38
 };
 
 enum StateInterfaces
@@ -176,7 +176,7 @@ protected:
   rclcpp::Service<ur_msgs::srv::SetAnalogOutput>::SharedPtr set_analog_output_srv_;
   rclcpp::Service<ur_msgs::srv::SetPayload>::SharedPtr set_payload_srv_;
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr tare_sensor_srv_;
-  rclcpp::Service<ur_msgs::srv::SetForceModeParams>::SharedPtr set_force_mode_params_srv_;
+  // rclcpp::Service<ur_msgs::srv::SetForceModeParams>::SharedPtr set_force_mode_params_srv_;
 
   std::shared_ptr<rclcpp::Publisher<ur_msgs::msg::IOStates>> io_pub_;
   std::shared_ptr<rclcpp::Publisher<ur_msgs::msg::ToolDataMsg>> tool_data_pub_;

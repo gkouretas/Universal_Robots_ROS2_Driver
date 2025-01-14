@@ -225,11 +225,11 @@
         <command_interface name="zero_ftsensor_async_success"/>
       </gpio>
 
-      <gpio name="${tf_prefix}force_mode_params">
+      <!-- <gpio name="${tf_prefix}force_mode_params">
         <command_interface name="force_mode_params_damping"/>
         <command_interface name="force_mode_params_gain_scaling"/>
         <command_interface name="force_mode_params_async_success"/>
-      </gpio>
+      </gpio> -->
 
       <gpio name="${tf_prefix}freedrive_mode">
         <command_interface name="async_success"/>

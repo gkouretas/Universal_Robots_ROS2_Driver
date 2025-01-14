@@ -100,9 +100,9 @@ controller_interface::InterfaceConfiguration GPIOController::command_interface_c
   config.names.emplace_back(tf_prefix + "gpio/analog_output_domain_cmd");
 
   // Force mode parameters
-  config.names.emplace_back(tf_prefix + "force_mode_params/force_mode_params_damping");
-  config.names.emplace_back(tf_prefix + "force_mode_params/force_mode_params_gain_scaling");
-  config.names.emplace_back(tf_prefix + "force_mode_params/force_mode_params_async_success");
+  // config.names.emplace_back(tf_prefix + "force_mode_params/force_mode_params_damping");
+  // config.names.emplace_back(tf_prefix + "force_mode_params/force_mode_params_gain_scaling");
+  // config.names.emplace_back(tf_prefix + "force_mode_params/force_mode_params_async_success");
 
   return config;
 }
@@ -323,9 +323,9 @@ ur_controllers::GPIOController::on_activate(const rclcpp_lifecycle::State& /*pre
         "~/zero_ftsensor",
         std::bind(&GPIOController::zeroFTSensor, this, std::placeholders::_1, std::placeholders::_2));
 
-    set_force_mode_params_srv_ = get_node()->create_service<ur_msgs::srv::SetForceModeParams>(
-        "~/set_force_mode_params",
-        std::bind(&GPIOController::setForceModeParams, this, std::placeholders::_1, std::placeholders::_2));
+    // set_force_mode_params_srv_ = get_node()->create_service<ur_msgs::srv::SetForceModeParams>(
+    //     "~/set_force_mode_params",
+    //     std::bind(&GPIOController::setForceModeParams, this, std::placeholders::_1, std::placeholders::_2));
   } catch (...) {
     return LifecycleNodeInterface::CallbackReturn::ERROR;
   }
@@ -578,27 +578,28 @@ bool GPIOController::setForceModeParams(ur_msgs::srv::SetForceModeParams::Reques
                                         ur_msgs::srv::SetForceModeParams::Response::SharedPtr resp)
 {
   // reset success flag
-  command_interfaces_[CommandInterfaces::FORCE_MODE_PARAMS_ASYNC_SUCCESS].set_value(ASYNC_WAITING);
-  // call the service in the hardware
-  command_interfaces_[CommandInterfaces::FORCE_MODE_PARAMS_DAMPING].set_value(req->damping_factor);
-  command_interfaces_[CommandInterfaces::FORCE_MODE_PARAMS_DAMPING].set_value(req->gain_scaling);
+  // command_interfaces_[CommandInterfaces::FORCE_MODE_PARAMS_ASYNC_SUCCESS].set_value(ASYNC_WAITING);
+  // // call the service in the hardware
+  // command_interfaces_[CommandInterfaces::FORCE_MODE_PARAMS_DAMPING].set_value(req->damping_factor);
+  // command_interfaces_[CommandInterfaces::FORCE_MODE_PARAMS_DAMPING].set_value(req->gain_scaling);
 
-  if (!waitForAsyncCommand(
-          [&]() { return command_interfaces_[CommandInterfaces::FORCE_MODE_PARAMS_ASYNC_SUCCESS].get_value(); })) {
-    RCLCPP_WARN(get_node()->get_logger(), "Could not verify that force mode params were set. (This might happen when "
-                                          "using the "
-                                          "mocked interface)");
-  }
+  // if (!waitForAsyncCommand(
+  //         [&]() { return command_interfaces_[CommandInterfaces::FORCE_MODE_PARAMS_ASYNC_SUCCESS].get_value(); })) {
+  //   RCLCPP_WARN(get_node()->get_logger(), "Could not verify that force mode params were set. (This might happen when
+  //   "
+  //                                         "using the "
+  //                                         "mocked interface)");
+  // }
 
-  resp->success =
-      static_cast<bool>(command_interfaces_[CommandInterfaces::FORCE_MODE_PARAMS_ASYNC_SUCCESS].get_value());
+  // resp->success =
+  //     static_cast<bool>(command_interfaces_[CommandInterfaces::FORCE_MODE_PARAMS_ASYNC_SUCCESS].get_value());
 
-  if (resp->success) {
-    RCLCPP_INFO(get_node()->get_logger(), "Successfully sent force mode params");
-  } else {
-    RCLCPP_ERROR(get_node()->get_logger(), "Failed to send force mode params");
-    return false;
-  }
+  // if (resp->success) {
+  //   RCLCPP_INFO(get_node()->get_logger(), "Successfully sent force mode params");
+  // } else {
+  //   RCLCPP_ERROR(get_node()->get_logger(), "Failed to send force mode params");
+  //   return false;
+  // }
 
   return true;
 }
