@@ -371,6 +371,12 @@ std::vector<hardware_interface::CommandInterface> URPositionHardwareInterface::e
       tf_prefix + "force_mode_params", "force_mode_params_cmd", &force_mode_params_cmd_));
 
   command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + "force_mode_params", "force_mode_params_damping", &force_mode_damping_dynamic_));
+
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + "force_mode_params", "force_mode_params_gain_scaling", &force_mode_gain_scaling_dynamic_));
+
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
       tf_prefix + "force_mode_params", "force_mode_params_async_success", &force_mode_params_async_success_));
 
   command_interfaces.emplace_back(hardware_interface::CommandInterface(tf_prefix + FREEDRIVE_MODE_GPIO, "async_success",
@@ -809,6 +815,9 @@ void URPositionHardwareInterface::initAsyncIO()
 
   payload_mass_ = NO_NEW_CMD_;
   payload_center_of_gravity_ = { NO_NEW_CMD_, NO_NEW_CMD_, NO_NEW_CMD_ };
+
+  force_mode_damping_dynamic_ = NO_NEW_CMD_;
+  force_mode_gain_scaling_dynamic_ = NO_NEW_CMD_;
 }
 
 void URPositionHardwareInterface::checkAsyncIO()
@@ -883,8 +892,10 @@ void URPositionHardwareInterface::checkAsyncIO()
     zero_ftsensor_cmd_ = NO_NEW_CMD_;
   }
 
-  if (!std::isnan(force_mode_params_cmd_) && ur_driver_ != nullptr) {
-    force_mode_params_async_success_ = ur_driver_->zeroFTSensor();
+  if (!std::isnan(force_mode_params_cmd_) && !std::isnan(force_mode_damping_dynamic_) &&
+      !std::isnan(force_mode_gain_scaling_dynamic_) && ur_driver_ != nullptr) {
+    force_mode_params_async_success_ =
+        ur_driver_->setForceModeParams(force_mode_damping_dynamic_, force_mode_gain_scaling_dynamic_);
     force_mode_params_cmd_ = NO_NEW_CMD_;
   }
 

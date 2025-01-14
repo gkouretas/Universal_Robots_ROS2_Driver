@@ -263,6 +263,10 @@ protected:
   double force_mode_damping_;
   double force_mode_gain_scaling_;
 
+  // dynamic force mode parameters
+  double force_mode_damping_dynamic_;
+  double force_mode_gain_scaling_dynamic_;
+
   // copy of non double values
   std::array<double, 18> actual_dig_out_bits_copy_;
   std::array<double, 18> actual_dig_in_bits_copy_;

@@ -227,6 +227,8 @@
 
       <gpio name="${tf_prefix}force_mode_params">
         <command_interface name="force_mode_params_cmd"/>
+        <command_interface name="force_mode_params_damping"/>
+        <command_interface name="force_mode_params_gain_scaling"/>
         <command_interface name="force_mode_params_async_success"/>
       </gpio>
 
