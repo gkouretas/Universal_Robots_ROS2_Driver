@@ -135,6 +135,7 @@ Advertised services
 * ``~/set_speed_slider [ur_msgs/srv/SetSpeedSliderFraction]``: Set the value of the speed slider.
 * ``~/zero_ftsensor [std_srvs/srv/Trigger]``: Zeroes the reported wrench of the force torque
   sensor.
+* ``~/set_force_mode_params [ur_msgs/srv/SetForceModeParams]``: Set force mode parameters.
 
 .. _passthrough_trajectory_controller:
 

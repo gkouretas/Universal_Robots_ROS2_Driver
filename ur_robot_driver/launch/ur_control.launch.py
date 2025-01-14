@@ -31,11 +31,19 @@
 
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterFile, ParameterValue
-from launch_ros.substitutions import FindPackageShare
+from launch_ros.substitutions import FindPackageShare, FindPackagePrefix
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import (
+    DeclareLaunchArgument,
+    OpaqueFunction,
+    ExecuteProcess,
+    RegisterEventHandler,
+    LogInfo,
+)
+
 from launch.conditions import IfCondition, UnlessCondition
+from launch.event_handlers import OnProcessExit
 from launch.substitutions import (
     AndSubstitution,
     Command,
@@ -45,6 +53,21 @@ from launch.substitutions import (
     PathJoinSubstitution,
 )
 
+_SIM_ARGUMENT_MAP = {"ur_type": "-m", "robot_ip": "-i", "simulation_version": "-v"}
+
+
+def parse_simulation_arguments(*args: LaunchConfiguration) -> list:
+    sim_args = []
+    for launch_config in args:
+        name = launch_config.variable_name[0].describe()[1:-1]
+        if name in _SIM_ARGUMENT_MAP.keys():
+            sim_args.append(_SIM_ARGUMENT_MAP[name])
+            sim_args.append(launch_config)
+        else:
+            pass
+
+    return sim_args
+
 
 def launch_setup(context, *args, **kwargs):
     # Initialize Arguments
@@ -53,6 +76,10 @@ def launch_setup(context, *args, **kwargs):
     safety_limits = LaunchConfiguration("safety_limits")
     safety_pos_margin = LaunchConfiguration("safety_pos_margin")
     safety_k_position = LaunchConfiguration("safety_k_position")
+    # Simulation arguments
+    launch_simulation = LaunchConfiguration("launch_simulation")
+    simulation_version = LaunchConfiguration("simulation_version")
+    # TODO: include other arguments (other than detached mode, since there would be no reason to not be detached)
     # General arguments
     runtime_config_package = LaunchConfiguration("runtime_config_package")
     controllers_file = LaunchConfiguration("controllers_file")
@@ -131,6 +158,12 @@ def launch_setup(context, *args, **kwargs):
             " ",
             "safety_k_position:=",
             safety_k_position,
+            " ",
+            "launch_simulation:=",
+            launch_simulation,
+            " ",
+            "simulation_version:=",
+            simulation_version,
             " ",
             "name:=",
             ur_type,
@@ -221,6 +254,45 @@ def launch_setup(context, *args, **kwargs):
         ]
     )
 
+    simulation_process = ExecuteProcess(
+        cmd=[
+            PathJoinSubstitution(
+                [
+                    FindPackagePrefix("ur_client_library"),
+                    "lib",
+                    "ur_client_library",
+                    "start_ursim.sh",
+                ]
+            )
+        ]
+        + parse_simulation_arguments(ur_type, robot_ip, simulation_version),
+        name="start_ursim",
+        output="screen",
+        condition=IfCondition(launch_simulation),
+    )
+
+    simulation_process_exit = RegisterEventHandler(
+        OnProcessExit(
+            target_action=simulation_process,
+            on_exit=[
+                LogInfo(msg="Terminating simulation"),
+                ExecuteProcess(cmd=["docker", "stop", "ursim"]),
+            ],
+        ),
+        condition=IfCondition(launch_simulation),
+    )
+
+    wait_dashboard_server = ExecuteProcess(
+        cmd=[
+            PathJoinSubstitution(
+                [FindPackagePrefix("ur_robot_driver"), "bin", "wait_dashboard_server.sh"]
+            )
+        ]
+        + parse_simulation_arguments(robot_ip),
+        name="wait_dashboard_server",
+        output="screen",
+    )
+
     control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
@@ -295,7 +367,7 @@ def launch_setup(context, *args, **kwargs):
                     "force_torque_sensor_broadcaster",
                     "joint_state_broadcaster",
                     "speed_scaling_state_broadcaster",
-                    "tcp_pose_broadcaster",
+                    # "tcp_pose_broadcaster",
                     "ur_configuration_controller",
                 ]
             },
@@ -339,7 +411,7 @@ def launch_setup(context, *args, **kwargs):
         "io_and_status_controller",
         "speed_scaling_state_broadcaster",
         "force_torque_sensor_broadcaster",
-        "tcp_pose_broadcaster",
+        # "tcp_pose_broadcaster",
         "ur_configuration_controller",
     ]
     controllers_inactive = [
@@ -359,16 +431,30 @@ def launch_setup(context, *args, **kwargs):
         controller_spawner(controllers_inactive, active=False)
     ]
 
+    exec_nodes = RegisterEventHandler(
+        OnProcessExit(
+            target_action=wait_dashboard_server,
+            on_exit=[LogInfo(msg="Connection successful, executing control nodes...")]
+            + [
+                control_node,
+                ur_control_node,
+                dashboard_client_node,
+                tool_communication_node,
+                urscript_interface,
+                controller_stopper_node,
+                robot_state_publisher_node,
+                rviz_node,
+            ]
+            + controller_spawners,
+        )
+    )
+
     nodes_to_start = [
-        control_node,
-        ur_control_node,
-        dashboard_client_node,
-        tool_communication_node,
-        controller_stopper_node,
-        urscript_interface,
-        robot_state_publisher_node,
-        rviz_node,
-    ] + controller_spawners
+        simulation_process,
+        simulation_process_exit,
+        wait_dashboard_server,
+        exec_nodes,
+    ]
 
     return nodes_to_start
 
@@ -409,6 +495,20 @@ def generate_launch_description():
             description="k-position factor in the safety controller.",
         )
     )
+
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "launch_simulation", default_value="false", description="Launch Polyscope simulation"
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "simulation_version",
+            default_value="latest",
+            description="Polyscope simulation version (only used if launch_simulation == true)",
+        )
+    )
+
     # General arguments
     declared_arguments.append(
         DeclareLaunchArgument(

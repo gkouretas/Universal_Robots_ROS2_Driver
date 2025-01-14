@@ -219,6 +219,7 @@ protected:
   double zero_ftsensor_async_success_;
   double hand_back_control_cmd_;
   double hand_back_control_async_success_;
+  // double force_mode_params_async_success_;
   bool first_pass_;
   bool initialized_;
   double system_interface_initialized_;
@@ -260,6 +261,10 @@ protected:
   double force_mode_disable_cmd_;
   double force_mode_damping_;
   double force_mode_gain_scaling_;
+
+  // dynamic force mode parameters
+  // double force_mode_damping_dynamic_;
+  // double force_mode_gain_scaling_dynamic_;
 
   // copy of non double values
   std::array<double, 18> actual_dig_out_bits_copy_;

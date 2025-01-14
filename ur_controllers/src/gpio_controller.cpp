@@ -99,6 +99,11 @@ controller_interface::InterfaceConfiguration GPIOController::command_interface_c
 
   config.names.emplace_back(tf_prefix + "gpio/analog_output_domain_cmd");
 
+  // Force mode parameters
+  // config.names.emplace_back(tf_prefix + "force_mode_params/force_mode_params_damping");
+  // config.names.emplace_back(tf_prefix + "force_mode_params/force_mode_params_gain_scaling");
+  // config.names.emplace_back(tf_prefix + "force_mode_params/force_mode_params_async_success");
+
   return config;
 }
 
@@ -317,6 +322,10 @@ ur_controllers::GPIOController::on_activate(const rclcpp_lifecycle::State& /*pre
     tare_sensor_srv_ = get_node()->create_service<std_srvs::srv::Trigger>(
         "~/zero_ftsensor",
         std::bind(&GPIOController::zeroFTSensor, this, std::placeholders::_1, std::placeholders::_2));
+
+    // set_force_mode_params_srv_ = get_node()->create_service<ur_msgs::srv::SetForceModeParams>(
+    //     "~/set_force_mode_params",
+    //     std::bind(&GPIOController::setForceModeParams, this, std::placeholders::_1, std::placeholders::_2));
   } catch (...) {
     return LifecycleNodeInterface::CallbackReturn::ERROR;
   }
@@ -433,7 +442,7 @@ bool GPIOController::setAnalogOutput(ur_msgs::srv::SetAnalogOutput::Request::Sha
 bool GPIOController::setSpeedSlider(ur_msgs::srv::SetSpeedSliderFraction::Request::SharedPtr req,
                                     ur_msgs::srv::SetSpeedSliderFraction::Response::SharedPtr resp)
 {
-  if (req->speed_slider_fraction >= 0.01 && req->speed_slider_fraction <= 1.0) {
+  if (req->speed_slider_fraction >= 0.0 && req->speed_slider_fraction <= 1.0) {
     RCLCPP_INFO(get_node()->get_logger(), "Setting speed slider to %.2f%%.", req->speed_slider_fraction * 100.0);
     // reset success flag
     command_interfaces_[CommandInterfaces::TARGET_SPEED_FRACTION_ASYNC_SUCCESS].set_value(ASYNC_WAITING);
@@ -450,7 +459,7 @@ bool GPIOController::setSpeedSlider(ur_msgs::srv::SetSpeedSliderFraction::Reques
     resp->success =
         static_cast<bool>(command_interfaces_[CommandInterfaces::TARGET_SPEED_FRACTION_ASYNC_SUCCESS].get_value());
   } else {
-    RCLCPP_WARN(get_node()->get_logger(), "The desired speed slider fraction must be within range (0; 1.0]. Request "
+    RCLCPP_WARN(get_node()->get_logger(), "The desired speed slider fraction must be within range [0; 1.0]. Request "
                                           "ignored.");
     resp->success = false;
     return false;
@@ -561,6 +570,36 @@ bool GPIOController::zeroFTSensor(std_srvs::srv::Trigger::Request::SharedPtr /*r
     RCLCPP_ERROR(get_node()->get_logger(), "Could not zero the force torque sensor");
     return false;
   }
+
+  return true;
+}
+
+bool GPIOController::setForceModeParams(ur_msgs::srv::SetForceModeParams::Request::SharedPtr req,
+                                        ur_msgs::srv::SetForceModeParams::Response::SharedPtr resp)
+{
+  // reset success flag
+  // command_interfaces_[CommandInterfaces::FORCE_MODE_PARAMS_ASYNC_SUCCESS].set_value(ASYNC_WAITING);
+  // // call the service in the hardware
+  // command_interfaces_[CommandInterfaces::FORCE_MODE_PARAMS_DAMPING].set_value(req->damping_factor);
+  // command_interfaces_[CommandInterfaces::FORCE_MODE_PARAMS_DAMPING].set_value(req->gain_scaling);
+
+  // if (!waitForAsyncCommand(
+  //         [&]() { return command_interfaces_[CommandInterfaces::FORCE_MODE_PARAMS_ASYNC_SUCCESS].get_value(); })) {
+  //   RCLCPP_WARN(get_node()->get_logger(), "Could not verify that force mode params were set. (This might happen when
+  //   "
+  //                                         "using the "
+  //                                         "mocked interface)");
+  // }
+
+  // resp->success =
+  //     static_cast<bool>(command_interfaces_[CommandInterfaces::FORCE_MODE_PARAMS_ASYNC_SUCCESS].get_value());
+
+  // if (resp->success) {
+  //   RCLCPP_INFO(get_node()->get_logger(), "Successfully sent force mode params");
+  // } else {
+  //   RCLCPP_ERROR(get_node()->get_logger(), "Failed to send force mode params");
+  //   return false;
+  // }
 
   return true;
 }
