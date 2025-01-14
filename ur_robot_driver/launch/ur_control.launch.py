@@ -35,11 +35,11 @@ from launch_ros.substitutions import FindPackageShare, FindPackagePrefix
 
 from launch import LaunchDescription
 from launch.actions import (
-    DeclareLaunchArgument, 
-    OpaqueFunction, 
-    ExecuteProcess, 
+    DeclareLaunchArgument,
+    OpaqueFunction,
+    ExecuteProcess,
     RegisterEventHandler,
-    LogInfo
+    LogInfo,
 )
 
 from launch.conditions import IfCondition, UnlessCondition
@@ -53,11 +53,8 @@ from launch.substitutions import (
     PathJoinSubstitution,
 )
 
-_SIM_ARGUMENT_MAP = {
-    "ur_type": "-m",
-    "robot_ip": "-i",
-    "simulation_version": "-v"
-}
+_SIM_ARGUMENT_MAP = {"ur_type": "-m", "robot_ip": "-i", "simulation_version": "-v"}
+
 
 def parse_simulation_arguments(*args: LaunchConfiguration) -> list:
     sim_args = []
@@ -68,8 +65,9 @@ def parse_simulation_arguments(*args: LaunchConfiguration) -> list:
             sim_args.append(launch_config)
         else:
             pass
-    
+
     return sim_args
+
 
 def launch_setup(context, *args, **kwargs):
     # Initialize Arguments
@@ -257,7 +255,7 @@ def launch_setup(context, *args, **kwargs):
     )
 
     simulation_process = ExecuteProcess(
-        cmd = [
+        cmd=[
             PathJoinSubstitution(
                 [
                     FindPackagePrefix("ur_client_library"),
@@ -266,18 +264,22 @@ def launch_setup(context, *args, **kwargs):
                     "start_ursim.sh",
                 ]
             )
-        ] + parse_simulation_arguments(ur_type, robot_ip, simulation_version),
-        name = "start_ursim",
-        output = "screen",
-        condition = IfCondition(launch_simulation)
+        ]
+        + parse_simulation_arguments(ur_type, robot_ip, simulation_version),
+        name="start_ursim",
+        output="screen",
+        condition=IfCondition(launch_simulation),
     )
 
     simulation_process_exit = RegisterEventHandler(
         OnProcessExit(
-            target_action = simulation_process,
-            on_exit = [LogInfo(msg = "Terminating simulation"), ExecuteProcess(cmd = ["docker", "stop", "ursim"])]
+            target_action=simulation_process,
+            on_exit=[
+                LogInfo(msg="Terminating simulation"),
+                ExecuteProcess(cmd=["docker", "stop", "ursim"]),
+            ],
         ),
-        condition = IfCondition(launch_simulation)
+        condition=IfCondition(launch_simulation),
     )
 
     wait_dashboard_server = ExecuteProcess(
@@ -285,9 +287,10 @@ def launch_setup(context, *args, **kwargs):
             PathJoinSubstitution(
                 [FindPackagePrefix("ur_robot_driver"), "bin", "wait_dashboard_server.sh"]
             )
-        ] + parse_simulation_arguments(robot_ip),
+        ]
+        + parse_simulation_arguments(robot_ip),
         name="wait_dashboard_server",
-        output="screen"
+        output="screen",
     )
 
     control_node = Node(
@@ -430,10 +433,9 @@ def launch_setup(context, *args, **kwargs):
 
     exec_nodes = RegisterEventHandler(
         OnProcessExit(
-            target_action = wait_dashboard_server,
-            on_exit = [
-                LogInfo(msg = "Connection successful, executing control nodes...")
-            ] + [
+            target_action=wait_dashboard_server,
+            on_exit=[LogInfo(msg="Connection successful, executing control nodes...")]
+            + [
                 control_node,
                 ur_control_node,
                 dashboard_client_node,
@@ -441,8 +443,9 @@ def launch_setup(context, *args, **kwargs):
                 urscript_interface,
                 controller_stopper_node,
                 robot_state_publisher_node,
-                rviz_node
-            ] + controller_spawners
+                rviz_node,
+            ]
+            + controller_spawners,
         )
     )
 
@@ -450,7 +453,7 @@ def launch_setup(context, *args, **kwargs):
         simulation_process,
         simulation_process_exit,
         wait_dashboard_server,
-        exec_nodes
+        exec_nodes,
     ]
 
     return nodes_to_start
@@ -467,7 +470,9 @@ def generate_launch_description():
         )
     )
     declared_arguments.append(
-        DeclareLaunchArgument("robot_ip", description="IP address by which the robot can be reached.")
+        DeclareLaunchArgument(
+            "robot_ip", description="IP address by which the robot can be reached."
+        )
     )
     declared_arguments.append(
         DeclareLaunchArgument(
@@ -493,16 +498,14 @@ def generate_launch_description():
 
     declared_arguments.append(
         DeclareLaunchArgument(
-            "launch_simulation",
-            default_value="false",
-            description="Launch Polyscope simulation"
+            "launch_simulation", default_value="false", description="Launch Polyscope simulation"
         )
     )
     declared_arguments.append(
         DeclareLaunchArgument(
             "simulation_version",
             default_value="latest",
-            description="Polyscope simulation version (only used if launch_simulation == true)"
+            description="Polyscope simulation version (only used if launch_simulation == true)",
         )
     )
 
