@@ -316,35 +316,64 @@ std::vector<hardware_interface::CommandInterface> URPositionHardwareInterface::e
   command_interfaces.emplace_back(
       hardware_interface::CommandInterface(tf_prefix + "payload", "payload_async_success", &payload_async_success_));
 
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "task_frame_x", &force_mode_task_frame_[0]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "task_frame_y", &force_mode_task_frame_[1]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "task_frame_z", &force_mode_task_frame_[2]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "task_frame_rx", &force_mode_task_frame_[3]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "task_frame_ry", &force_mode_task_frame_[4]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "task_frame_rz", &force_mode_task_frame_[5]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "selection_vector_x", &force_mode_selection_vector_[0]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "selection_vector_y", &force_mode_selection_vector_[1]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "selection_vector_z", &force_mode_selection_vector_[2]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "selection_vector_rx", &force_mode_selection_vector_[3]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "selection_vector_ry", &force_mode_selection_vector_[4]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "selection_vector_rz", &force_mode_selection_vector_[5]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "wrench_x", &force_mode_wrench_[0]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "wrench_y", &force_mode_wrench_[1]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "wrench_z", &force_mode_wrench_[2]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "wrench_rx", &force_mode_wrench_[3]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "wrench_ry", &force_mode_wrench_[4]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "wrench_rz", &force_mode_wrench_[5]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "type", &force_mode_type_);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "limits_x", &force_mode_limits_[0]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "limits_y", &force_mode_limits_[1]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "limits_z", &force_mode_limits_[2]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "limits_rx", &force_mode_limits_[3]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "limits_ry", &force_mode_limits_[4]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "limits_rz", &force_mode_limits_[5]);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "force_mode_async_success", &force_mode_async_success_);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "disable_cmd", &force_mode_disable_cmd_);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "damping", &force_mode_damping_);
-  command_interfaces.emplace_back(tf_prefix + FORCE_MODE_GPIO, "gain_scaling", &force_mode_gain_scaling_);
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "task_frame_x", &force_mode_task_frame_[0]));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "task_frame_y", &force_mode_task_frame_[1]));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "task_frame_z", &force_mode_task_frame_[2]));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "task_frame_rx", &force_mode_task_frame_[3]));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "task_frame_ry", &force_mode_task_frame_[4]));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "task_frame_rz", &force_mode_task_frame_[5]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + FORCE_MODE_GPIO, "selection_vector_x", &force_mode_selection_vector_[0]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + FORCE_MODE_GPIO, "selection_vector_y", &force_mode_selection_vector_[1]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + FORCE_MODE_GPIO, "selection_vector_z", &force_mode_selection_vector_[2]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + FORCE_MODE_GPIO, "selection_vector_rx", &force_mode_selection_vector_[3]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + FORCE_MODE_GPIO, "selection_vector_ry", &force_mode_selection_vector_[4]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + FORCE_MODE_GPIO, "selection_vector_rz", &force_mode_selection_vector_[5]));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "wrench_x", &force_mode_wrench_[0]));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "wrench_y", &force_mode_wrench_[1]));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "wrench_z", &force_mode_wrench_[2]));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "wrench_rx", &force_mode_wrench_[3]));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "wrench_ry", &force_mode_wrench_[4]));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "wrench_rz", &force_mode_wrench_[5]));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "type", &force_mode_type_));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "limits_x", &force_mode_limits_[0]));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "limits_y", &force_mode_limits_[1]));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "limits_z", &force_mode_limits_[2]));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "limits_rx", &force_mode_limits_[3]));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "limits_ry", &force_mode_limits_[4]));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "limits_rz", &force_mode_limits_[5]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + FORCE_MODE_GPIO, "force_mode_async_success", &force_mode_async_success_));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "disable_cmd", &force_mode_disable_cmd_));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "damping", &force_mode_damping_));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "gain_scaling", &force_mode_gain_scaling_));
 
   for (size_t i = 0; i < 18; ++i) {
     command_interfaces.emplace_back(hardware_interface::CommandInterface(
@@ -384,6 +413,35 @@ std::vector<hardware_interface::CommandInterface> URPositionHardwareInterface::e
 
   command_interfaces.emplace_back(
       hardware_interface::CommandInterface(tf_prefix + FREEDRIVE_MODE_GPIO, "abort", &freedrive_mode_abort_));
+
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + FREEDRIVE_MODE_GPIO, "params_vector_x", &freedrive_params_vector_[0]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + FREEDRIVE_MODE_GPIO, "params_vector_y", &freedrive_params_vector_[1]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + FREEDRIVE_MODE_GPIO, "params_vector_z", &freedrive_params_vector_[2]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + FREEDRIVE_MODE_GPIO, "params_vector_rx", &freedrive_params_vector_[3]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + FREEDRIVE_MODE_GPIO, "params_vector_ry", &freedrive_params_vector_[4]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + FREEDRIVE_MODE_GPIO, "params_vector_rz", &freedrive_params_vector_[5]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + FREEDRIVE_MODE_GPIO, "params_feature_pose_vector_x", &freedrive_feature_pose_vector_[0]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + FREEDRIVE_MODE_GPIO, "params_feature_pose_vector_y", &freedrive_feature_pose_vector_[1]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + FREEDRIVE_MODE_GPIO, "params_feature_pose_vector_z", &freedrive_feature_pose_vector_[2]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + FREEDRIVE_MODE_GPIO, "params_feature_pose_vector_rx", &freedrive_feature_pose_vector_[3]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + FREEDRIVE_MODE_GPIO, "params_feature_pose_vector_ry", &freedrive_feature_pose_vector_[4]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + FREEDRIVE_MODE_GPIO, "params_feature_pose_vector_rz", &freedrive_feature_pose_vector_[5]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + FREEDRIVE_MODE_GPIO, "params_feature_pose_constant_base", &freedrive_feature_constant_base_));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + FREEDRIVE_MODE_GPIO, "params_feature_pose_constant_tool", &freedrive_feature_constant_tool_));
 
   command_interfaces.emplace_back(hardware_interface::CommandInterface(tf_prefix + PASSTHROUGH_GPIO, "transfer_state",
                                                                        &passthrough_trajectory_transfer_state_));
@@ -738,6 +796,10 @@ hardware_interface::return_type URPositionHardwareInterface::read(const rclcpp::
       force_mode_disable_cmd_ = NO_NEW_CMD_;
       freedrive_mode_abort_ = NO_NEW_CMD_;
       freedrive_mode_enable_ = NO_NEW_CMD_;
+      freedrive_params_vector_ = { { 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 } };
+      freedrive_feature_pose_vector_ = { { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 } };
+      freedrive_feature_constant_base_ = NO_NEW_CMD_;
+      freedrive_feature_constant_tool_ = NO_NEW_CMD_;
       initialized_ = true;
     }
 
@@ -898,8 +960,17 @@ void URPositionHardwareInterface::checkAsyncIO()
 
   if (!std::isnan(freedrive_mode_enable_) && ur_driver_ != nullptr) {
     RCLCPP_INFO(rclcpp::get_logger("URPosistionHardwareInterface"), "Starting freedrive mode.");
-    freedrive_mode_async_success_ =
-        ur_driver_->writeFreedriveControlMessage(urcl::control::FreedriveControlMessage::FREEDRIVE_START);
+
+    // TODO(george): reset features a bit better...
+    freedrive_mode_async_success_ = ur_driver_->writeFreedriveControlMessage(
+        urcl::control::FreedriveControlMessage::FREEDRIVE_START,
+        urcl::control::ReverseInterface::FreeAxes(freedrive_params_vector_),
+        !std::isnan(freedrive_feature_constant_tool_) ?
+            urcl::control::ReverseInterface::Feature(urcl::control::ReverseInterface::Feature::FeatureLiterals::TOOL) :
+            (!std::isnan(freedrive_feature_constant_base_) ?
+                 urcl::control::ReverseInterface::Feature(
+                     urcl::control::ReverseInterface::Feature::FeatureLiterals::BASE) :
+                 urcl::control::ReverseInterface::Feature(freedrive_feature_pose_vector_)));
     freedrive_mode_enable_ = NO_NEW_CMD_;
     freedrive_activated_ = true;
   }

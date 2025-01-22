@@ -235,6 +235,10 @@ protected:
   double freedrive_mode_async_success_;
   double freedrive_mode_enable_;
   double freedrive_mode_abort_;
+  urcl::vector6d_t freedrive_params_vector_;
+  urcl::vector6d_t freedrive_feature_pose_vector_;
+  double freedrive_feature_constant_base_;
+  double freedrive_feature_constant_tool_;
 
   // Passthrough trajectory controller interface values
   double passthrough_trajectory_transfer_state_;

@@ -38,6 +38,8 @@
 
 #pragma once
 
+#include <realtime_tools/realtime_buffer.h>
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -53,6 +55,8 @@
 #include <rclcpp/duration.hpp>
 #include "std_msgs/msg/bool.hpp"
 
+#include <ur_msgs/srv/set_freedrive_params.hpp>
+
 #include "freedrive_mode_controller_parameters.hpp"
 
 namespace ur_controllers
@@ -62,6 +66,20 @@ enum CommandInterfaces
   FREEDRIVE_MODE_ASYNC_SUCCESS = 0u,
   FREEDRIVE_MODE_ENABLE = 1,
   FREEDRIVE_MODE_ABORT = 2,
+  FREEDRIVE_MODE_PARAMS_VECTOR_X = 3,
+  FREEDRIVE_MODE_PARAMS_VECTOR_Y = 4,
+  FREEDRIVE_MODE_PARAMS_VECTOR_Z = 5,
+  FREEDRIVE_MODE_PARAMS_VECTOR_RX = 6,
+  FREEDRIVE_MODE_PARAMS_VECTOR_RY = 7,
+  FREEDRIVE_MODE_PARAMS_VECTOR_RZ = 8,
+  FREEDRIVE_MODE_PARAMS_FEATURE_POSE_VECTOR_X = 9,
+  FREEDRIVE_MODE_PARAMS_FEATURE_POSE_VECTOR_Y = 10,
+  FREEDRIVE_MODE_PARAMS_FEATURE_POSE_VECTOR_Z = 11,
+  FREEDRIVE_MODE_PARAMS_FEATURE_POSE_VECTOR_RX = 12,
+  FREEDRIVE_MODE_PARAMS_FEATURE_POSE_VECTOR_RY = 13,
+  FREEDRIVE_MODE_PARAMS_FEATURE_POSE_VECTOR_RZ = 14,
+  FREEDRIVE_MODE_PARAMS_FEATURE_CONSTANT_BASE = 15,
+  FREEDRIVE_MODE_PARAMS_FEATURE_CONSTANT_TOOL = 16
 };
 
 using namespace std::chrono_literals;  // NOLINT
@@ -69,6 +87,19 @@ using namespace std::chrono_literals;  // NOLINT
 class FreedriveModeController : public controller_interface::ControllerInterface
 {
 public:
+  struct FreedriveModeParamaters
+  {
+    enum class FreedriveModeConstants
+    {
+      TOOL,
+      BASE
+    };
+
+    std::optional<std::array<bool, 6>> free_axes_;
+    std::optional<FreedriveModeConstants> feature_constant_;
+    std::optional<std::array<double, 6>> feature_vector_;
+  };
+
   controller_interface::InterfaceConfiguration command_interface_configuration() const override;
 
   controller_interface::InterfaceConfiguration state_interface_configuration() const override;
@@ -94,9 +125,16 @@ private:
 
   std::shared_ptr<rclcpp::Subscription<std_msgs::msg::Bool>> enable_freedrive_mode_sub_;
 
+  rclcpp::Service<ur_msgs::srv::SetFreedriveParams>::SharedPtr set_freedrive_params_srv_;
+
+  realtime_tools::RealtimeBuffer<FreedriveModeParamaters> freedrive_params_buffer_;
+
   rclcpp::TimerBase::SharedPtr freedrive_sub_timer_;  ///< Timer to check for timeout on input
   mutable std::chrono::seconds timeout_interval_;
   void freedrive_cmd_callback(const std_msgs::msg::Bool::SharedPtr msg);
+
+  bool set_freedrive_params(const ur_msgs::srv::SetFreedriveParams::Request::SharedPtr req,
+                            ur_msgs::srv::SetFreedriveParams::Response::SharedPtr resp);
 
   std::shared_ptr<freedrive_mode_controller::ParamListener> freedrive_param_listener_;
   freedrive_mode_controller::Params freedrive_params_;
