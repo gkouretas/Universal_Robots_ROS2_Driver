@@ -344,6 +344,7 @@ ur_controllers::GPIOController::on_deactivate(const rclcpp_lifecycle::State& /*p
     program_state_pub_.reset();
     set_io_srv_.reset();
     set_speed_slider_srv_.reset();
+    set_force_mode_params_srv_.reset();
   } catch (...) {
     return LifecycleNodeInterface::CallbackReturn::ERROR;
   }
@@ -581,7 +582,7 @@ bool GPIOController::setForceModeParams(ur_msgs::srv::SetForceModeParams::Reques
   command_interfaces_[CommandInterfaces::FORCE_MODE_PARAMS_ASYNC_SUCCESS].set_value(ASYNC_WAITING);
   // call the service in the hardware
   command_interfaces_[CommandInterfaces::FORCE_MODE_PARAMS_DAMPING].set_value(req->damping_factor);
-  command_interfaces_[CommandInterfaces::FORCE_MODE_PARAMS_DAMPING].set_value(req->gain_scaling);
+  command_interfaces_[CommandInterfaces::FORCE_MODE_PARAMS_GAIN_SCALING].set_value(req->gain_scaling);
 
   if (!waitForAsyncCommand(
           [&]() { return command_interfaces_[CommandInterfaces::FORCE_MODE_PARAMS_ASYNC_SUCCESS].get_value(); })) {
