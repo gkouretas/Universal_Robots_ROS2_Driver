@@ -323,7 +323,7 @@ bool FreedriveModeController::set_freedrive_params(const ur_msgs::srv::SetFreedr
                                                    ur_msgs::srv::SetFreedriveParams::Response::SharedPtr resp)
 {
   // Reject if controller is not active
-  if (get_node()->get_current_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE && !freedrive_active_) {
+  if (get_node()->get_current_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE && freedrive_active_) {
     RCLCPP_ERROR(get_node()->get_logger(), "Can't accept new requests. Controller is running and freedrive is already "
                                            "active.");
     resp->success = false;
@@ -365,6 +365,9 @@ bool FreedriveModeController::set_freedrive_params(const ur_msgs::srv::SetFreedr
   }
 
   freedrive_params_buffer_.writeFromNonRT(freedrive_mode_parameters);
+
+  RCLCPP_INFO(get_node()->get_logger(), "Freedrive params set internally.");
+  resp->success = true;
 
   return true;
 }

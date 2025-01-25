@@ -231,7 +231,7 @@
         <command_interface name="force_mode_params_async_success"/>
       </gpio>
 
-      <!-- <gpio name="${tf_prefix}freedrive_mode">
+      <gpio name="${tf_prefix}freedrive_mode">
         <command_interface name="async_success"/>
         <command_interface name="enable"/>
         <command_interface name="abort"/>
@@ -249,7 +249,7 @@
         <command_interface name="params_feature_pose_vector_rz"/>
         <command_interface name="params_feature_constant_base"/>
         <command_interface name="params_feature_constant_tool"/>
-      </gpio> -->
+      </gpio>
 
       <gpio name="${tf_prefix}system_interface">
         <state_interface name="initialized"/>

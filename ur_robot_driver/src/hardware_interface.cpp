@@ -439,9 +439,9 @@ std::vector<hardware_interface::CommandInterface> URPositionHardwareInterface::e
   command_interfaces.emplace_back(hardware_interface::CommandInterface(
       tf_prefix + FREEDRIVE_MODE_GPIO, "params_feature_pose_vector_rz", &freedrive_feature_pose_vector_[5]));
   command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      tf_prefix + FREEDRIVE_MODE_GPIO, "params_feature_pose_constant_base", &freedrive_feature_constant_base_));
+      tf_prefix + FREEDRIVE_MODE_GPIO, "params_feature_constant_base", &freedrive_feature_constant_base_));
   command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      tf_prefix + FREEDRIVE_MODE_GPIO, "params_feature_pose_constant_tool", &freedrive_feature_constant_tool_));
+      tf_prefix + FREEDRIVE_MODE_GPIO, "params_feature_constant_tool", &freedrive_feature_constant_tool_));
 
   command_interfaces.emplace_back(hardware_interface::CommandInterface(tf_prefix + PASSTHROUGH_GPIO, "transfer_state",
                                                                        &passthrough_trajectory_transfer_state_));
