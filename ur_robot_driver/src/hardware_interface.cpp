@@ -961,16 +961,30 @@ void URPositionHardwareInterface::checkAsyncIO()
   if (!std::isnan(freedrive_mode_enable_) && ur_driver_ != nullptr) {
     RCLCPP_INFO(rclcpp::get_logger("URPosistionHardwareInterface"), "Starting freedrive mode.");
 
-    // TODO(george): reset features a bit better...
-    freedrive_mode_async_success_ = ur_driver_->writeFreedriveControlMessage(
-        urcl::control::FreedriveControlMessage::FREEDRIVE_START,
-        urcl::control::ReverseInterface::FreeAxes(freedrive_params_vector_),
-        !std::isnan(freedrive_feature_constant_tool_) ?
-            urcl::control::ReverseInterface::Feature(urcl::control::ReverseInterface::Feature::FeatureLiterals::TOOL) :
-            (!std::isnan(freedrive_feature_constant_base_) ?
-                 urcl::control::ReverseInterface::Feature(
-                     urcl::control::ReverseInterface::Feature::FeatureLiterals::BASE) :
-                 urcl::control::ReverseInterface::Feature(freedrive_feature_pose_vector_)));
+    // Use the most-recently stored freeAxes and feature variables
+    auto free_axes = urcl::control::ReverseInterface::FreeAxes(freedrive_params_vector_);
+    RCLCPP_INFO(rclcpp::get_logger("URPosistionHardwareInterface"), "Freedrive free axes: %d", free_axes.ToS32Buffer());
+    RCLCPP_INFO(rclcpp::get_logger("URPosistionHardwareInterface"), "Axes: %f %f %f %f %f %f",
+                freedrive_params_vector_[0], freedrive_params_vector_[1], freedrive_params_vector_[2],
+                freedrive_params_vector_[3], freedrive_params_vector_[4], freedrive_params_vector_[5]);
+
+    if (!std::isnan(freedrive_feature_constant_tool_)) {
+      RCLCPP_INFO(rclcpp::get_logger("URPosistionHardwareInterface"), "Feature: tool");
+      freedrive_mode_async_success_ = ur_driver_->writeFreedriveControlMessage(
+          urcl::control::FreedriveControlMessage::FREEDRIVE_START, free_axes,
+          urcl::control::ReverseInterface::Feature(urcl::control::ReverseInterface::Feature::FeatureLiterals::TOOL));
+    } else if (!std::isnan(freedrive_feature_constant_base_)) {
+      RCLCPP_INFO(rclcpp::get_logger("URPosistionHardwareInterface"), "Feature: base");
+      freedrive_mode_async_success_ = ur_driver_->writeFreedriveControlMessage(
+          urcl::control::FreedriveControlMessage::FREEDRIVE_START, free_axes,
+          urcl::control::ReverseInterface::Feature(urcl::control::ReverseInterface::Feature::FeatureLiterals::BASE));
+    } else {
+      RCLCPP_INFO(rclcpp::get_logger("URPosistionHardwareInterface"), "Feature: vector");
+      freedrive_mode_async_success_ = ur_driver_->writeFreedriveControlMessage(
+          urcl::control::FreedriveControlMessage::FREEDRIVE_START, free_axes,
+          urcl::control::ReverseInterface::Feature(freedrive_feature_pose_vector_));
+    }
+
     freedrive_mode_enable_ = NO_NEW_CMD_;
     freedrive_activated_ = true;
   }

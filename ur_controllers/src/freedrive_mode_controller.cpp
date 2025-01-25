@@ -137,7 +137,7 @@ ur_controllers::FreedriveModeController::on_activate(const rclcpp_lifecycle::Sta
 {
   change_requested_ = false;
   freedrive_active_ = false;
-  async_state_ = std::numeric_limits<double>::quiet_NaN();
+  async_state_ = NO_VAL;
 
   first_log_ = false;
   logging_thread_running_ = true;
@@ -228,31 +228,40 @@ controller_interface::return_type ur_controllers::FreedriveModeController::updat
 
         if (freedrive_parameters->free_axes_.has_value()) {
           command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_VECTOR_X].set_value(
-              freedrive_parameters->free_axes_.value()[0]);
+              (freedrive_parameters->free_axes_.value()[0]) ? 1.0 : 0.0);
           command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_VECTOR_Y].set_value(
-              freedrive_parameters->free_axes_.value()[1]);
+              (freedrive_parameters->free_axes_.value()[1]) ? 1.0 : 0.0);
           command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_VECTOR_Z].set_value(
-              freedrive_parameters->free_axes_.value()[2]);
+              (freedrive_parameters->free_axes_.value()[2]) ? 1.0 : 0.0);
           command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_VECTOR_RX].set_value(
-              freedrive_parameters->free_axes_.value()[3]);
+              (freedrive_parameters->free_axes_.value()[3]) ? 1.0 : 0.0);
           command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_VECTOR_RY].set_value(
-              freedrive_parameters->free_axes_.value()[4]);
+              (freedrive_parameters->free_axes_.value()[4]) ? 1.0 : 0.0);
           command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_VECTOR_RZ].set_value(
-              freedrive_parameters->free_axes_.value()[5]);
+              (freedrive_parameters->free_axes_.value()[5]) ? 1.0 : 0.0);
         }
 
         if (freedrive_parameters->feature_constant_.has_value()) {
           switch (freedrive_parameters->feature_constant_.value()) {
             case FreedriveModeParamaters::FreedriveModeConstants::TOOL:
-              command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_CONSTANT_BASE].set_value(0);
-              command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_CONSTANT_TOOL].set_value(1);
+              command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_CONSTANT_BASE].set_value(NO_VAL);
+              command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_CONSTANT_TOOL].set_value(1.0);
               break;
             case FreedriveModeParamaters::FreedriveModeConstants::BASE:
-              command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_CONSTANT_BASE].set_value(1);
-              command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_CONSTANT_TOOL].set_value(0);
+              command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_CONSTANT_BASE].set_value(1.0);
+              command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_CONSTANT_TOOL].set_value(NO_VAL);
+              break;
+            default:
+              // Assume custom vector
+              command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_CONSTANT_BASE].set_value(NO_VAL);
+              command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_CONSTANT_TOOL].set_value(NO_VAL);
               break;
           }
         } else if (freedrive_parameters->feature_vector_.has_value()) {
+          // Set constants to null
+          command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_CONSTANT_BASE].set_value(NO_VAL);
+          command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_CONSTANT_TOOL].set_value(NO_VAL);
+
           command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_POSE_VECTOR_X].set_value(
               freedrive_parameters->feature_vector_.value()[0]);
           command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_POSE_VECTOR_Y].set_value(

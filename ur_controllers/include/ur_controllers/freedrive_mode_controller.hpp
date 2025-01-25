@@ -45,6 +45,7 @@
 #include <vector>
 #include <thread>
 #include <mutex>
+#include <limits>
 
 #include <controller_interface/controller_interface.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -158,6 +159,7 @@ private:
   void stop_logging_thread();
 
   static constexpr double ASYNC_WAITING = 2.0;
+  static constexpr double NO_VAL = std::numeric_limits<double>::quiet_NaN();
   /**
    * @brief wait until a command interface isn't in state ASYNC_WAITING anymore or until the parameter maximum_retries
    * have been reached
