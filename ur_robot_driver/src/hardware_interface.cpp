@@ -1235,7 +1235,7 @@ hardware_interface::return_type URPositionHardwareInterface::prepare_command_mod
          return (item == hardware_interface::HW_IF_VELOCITY || item == hardware_interface::HW_IF_POSITION ||
                  item == PASSTHROUGH_GPIO || item == FORCE_MODE_GPIO);
        }))) {
-    RCLCPP_ERROR(rclcpp::get_logger("URPosistionHardwareInterface"), "Attempting to start force mode control while "
+    RCLCPP_ERROR(rclcpp::get_logger("URPosistionHardwareInterface"), "Attempting to start freedrive mode control while "
                                                                      "there is either position or "
                                                                      "velocity mode running.");
     ret_val = hardware_interface::return_type::ERROR;
