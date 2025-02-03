@@ -51,6 +51,11 @@
 #include "ur_robot_driver/hardware_interface.hpp"
 #include "ur_robot_driver/urcl_log_handler.hpp"
 
+/// @brief Private macros for differentiating between dynamic and standard force mode variables
+#define DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(_s_, _var_) ((_s_) == FORCE_MODE_GPIO) ? &_var_ : &dynamic_##_var_
+
+#define DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(_s_, _var_) ((_s_) == FORCE_MODE_GPIO) ? _var_ : dynamic_##_var_
+
 namespace rtde = urcl::rtde_interface;
 
 namespace ur_robot_driver
@@ -316,64 +321,80 @@ std::vector<hardware_interface::CommandInterface> URPositionHardwareInterface::e
   command_interfaces.emplace_back(
       hardware_interface::CommandInterface(tf_prefix + "payload", "payload_async_success", &payload_async_success_));
 
-  command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "task_frame_x", &force_mode_task_frame_[0]));
-  command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "task_frame_y", &force_mode_task_frame_[1]));
-  command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "task_frame_z", &force_mode_task_frame_[2]));
-  command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "task_frame_rx", &force_mode_task_frame_[3]));
-  command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "task_frame_ry", &force_mode_task_frame_[4]));
-  command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "task_frame_rz", &force_mode_task_frame_[5]));
-  command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      tf_prefix + FORCE_MODE_GPIO, "selection_vector_x", &force_mode_selection_vector_[0]));
-  command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      tf_prefix + FORCE_MODE_GPIO, "selection_vector_y", &force_mode_selection_vector_[1]));
-  command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      tf_prefix + FORCE_MODE_GPIO, "selection_vector_z", &force_mode_selection_vector_[2]));
-  command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      tf_prefix + FORCE_MODE_GPIO, "selection_vector_rx", &force_mode_selection_vector_[3]));
-  command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      tf_prefix + FORCE_MODE_GPIO, "selection_vector_ry", &force_mode_selection_vector_[4]));
-  command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      tf_prefix + FORCE_MODE_GPIO, "selection_vector_rz", &force_mode_selection_vector_[5]));
-  command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "wrench_x", &force_mode_wrench_[0]));
-  command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "wrench_y", &force_mode_wrench_[1]));
-  command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "wrench_z", &force_mode_wrench_[2]));
-  command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "wrench_rx", &force_mode_wrench_[3]));
-  command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "wrench_ry", &force_mode_wrench_[4]));
-  command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "wrench_rz", &force_mode_wrench_[5]));
-  command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "type", &force_mode_type_));
-  command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "limits_x", &force_mode_limits_[0]));
-  command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "limits_y", &force_mode_limits_[1]));
-  command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "limits_z", &force_mode_limits_[2]));
-  command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "limits_rx", &force_mode_limits_[3]));
-  command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "limits_ry", &force_mode_limits_[4]));
-  command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "limits_rz", &force_mode_limits_[5]));
-  command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      tf_prefix + FORCE_MODE_GPIO, "force_mode_async_success", &force_mode_async_success_));
-  command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "disable_cmd", &force_mode_disable_cmd_));
-  command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "damping", &force_mode_damping_));
-  command_interfaces.emplace_back(
-      hardware_interface::CommandInterface(tf_prefix + FORCE_MODE_GPIO, "gain_scaling", &force_mode_gain_scaling_));
+  for (auto& io_string : { FORCE_MODE_GPIO, DYNAMIC_FORCE_MODE_GPIO }) {
+    command_interfaces.emplace_back(
+        hardware_interface::CommandInterface(tf_prefix + io_string, "task_frame_x",
+                                             DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_task_frame_[0])));
+    command_interfaces.emplace_back(
+        hardware_interface::CommandInterface(tf_prefix + io_string, "task_frame_y",
+                                             DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_task_frame_[1])));
+    command_interfaces.emplace_back(
+        hardware_interface::CommandInterface(tf_prefix + io_string, "task_frame_z",
+                                             DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_task_frame_[2])));
+    command_interfaces.emplace_back(
+        hardware_interface::CommandInterface(tf_prefix + io_string, "task_frame_rx",
+                                             DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_task_frame_[3])));
+    command_interfaces.emplace_back(
+        hardware_interface::CommandInterface(tf_prefix + io_string, "task_frame_ry",
+                                             DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_task_frame_[4])));
+    command_interfaces.emplace_back(
+        hardware_interface::CommandInterface(tf_prefix + io_string, "task_frame_rz",
+                                             DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_task_frame_[5])));
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        tf_prefix + io_string, "selection_vector_x",
+        DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_selection_vector_[0])));
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        tf_prefix + io_string, "selection_vector_y",
+        DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_selection_vector_[1])));
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        tf_prefix + io_string, "selection_vector_z",
+        DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_selection_vector_[2])));
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        tf_prefix + io_string, "selection_vector_rx",
+        DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_selection_vector_[3])));
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        tf_prefix + io_string, "selection_vector_ry",
+        DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_selection_vector_[4])));
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        tf_prefix + io_string, "selection_vector_rz",
+        DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_selection_vector_[5])));
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        tf_prefix + io_string, "wrench_x", DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_wrench_[0])));
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        tf_prefix + io_string, "wrench_y", DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_wrench_[1])));
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        tf_prefix + io_string, "wrench_z", DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_wrench_[2])));
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        tf_prefix + io_string, "wrench_rx", DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_wrench_[3])));
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        tf_prefix + io_string, "wrench_ry", DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_wrench_[4])));
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        tf_prefix + io_string, "wrench_rz", DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_wrench_[5])));
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        tf_prefix + io_string, "type", DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_type_)));
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        tf_prefix + io_string, "limits_x", DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_limits_[0])));
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        tf_prefix + io_string, "limits_y", DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_limits_[1])));
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        tf_prefix + io_string, "limits_z", DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_limits_[2])));
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        tf_prefix + io_string, "limits_rx", DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_limits_[3])));
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        tf_prefix + io_string, "limits_ry", DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_limits_[4])));
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        tf_prefix + io_string, "limits_rz", DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_limits_[5])));
+    command_interfaces.emplace_back(
+        hardware_interface::CommandInterface(tf_prefix + io_string, "force_mode_async_success",
+                                             DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_async_success_)));
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        tf_prefix + io_string, "disable_cmd", DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_disable_cmd_)));
+    command_interfaces.emplace_back(hardware_interface::CommandInterface(
+        tf_prefix + io_string, "damping", DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_damping_)));
+    command_interfaces.emplace_back(
+        hardware_interface::CommandInterface(tf_prefix + io_string, "gain_scaling",
+                                             DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_gain_scaling_)));
+  }
 
   for (size_t i = 0; i < 18; ++i) {
     command_interfaces.emplace_back(hardware_interface::CommandInterface(
@@ -397,13 +418,14 @@ std::vector<hardware_interface::CommandInterface> URPositionHardwareInterface::e
       tf_prefix + "zero_ftsensor", "zero_ftsensor_async_success", &zero_ftsensor_async_success_));
 
   command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      tf_prefix + "force_mode_params", "force_mode_params_damping", &force_mode_damping_dynamic_));
+      tf_prefix + "force_mode_params", "force_mode_params_damping", &dynamic_force_mode_params_srv_damping_));
 
   command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      tf_prefix + "force_mode_params", "force_mode_params_gain_scaling", &force_mode_gain_scaling_dynamic_));
+      tf_prefix + "force_mode_params", "force_mode_params_gain_scaling", &dynamic_force_mode_params_srv_gain_scaling_));
 
-  command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      tf_prefix + "force_mode_params", "force_mode_params_async_success", &force_mode_params_async_success_));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(tf_prefix + "force_mode_params",
+                                                                       "force_mode_params_async_success",
+                                                                       &dynamic_force_mode_params_srv_async_success_));
 
   command_interfaces.emplace_back(hardware_interface::CommandInterface(tf_prefix + FREEDRIVE_MODE_GPIO, "async_success",
                                                                        &freedrive_mode_async_success_));
@@ -831,6 +853,12 @@ hardware_interface::return_type URPositionHardwareInterface::write(const rclcpp:
     } else if (freedrive_mode_controller_running_ && freedrive_activated_) {
       ur_driver_->writeFreedriveControlMessage(urcl::control::FreedriveControlMessage::FREEDRIVE_NOOP);
 
+    } else if (dynamic_force_mode_controller_running_ && dynamic_force_mode_controller_activated_) {
+      // TODO(george): NaN checks???
+      ur_driver_->writeDynamicForceModeMessage(
+          dynamic_force_mode_task_frame_,
+          urcl::control::ReverseInterface::BinaryArray(dynamic_force_mode_selection_vector_),
+          dynamic_force_mode_wrench_);
     } else if (passthrough_trajectory_controller_running_) {
       ur_driver_->writeTrajectoryControlMessage(urcl::control::TrajectoryControlMessage::TRAJECTORY_NOOP);
       check_passthrough_trajectory_controller();
@@ -841,11 +869,18 @@ hardware_interface::return_type URPositionHardwareInterface::write(const rclcpp:
     if (!std::isnan(force_mode_task_frame_[0]) && !std::isnan(force_mode_selection_vector_[0]) &&
         !std::isnan(force_mode_wrench_[0]) && !std::isnan(force_mode_type_) && !std::isnan(force_mode_limits_[0]) &&
         !std::isnan(force_mode_damping_) && !std::isnan(force_mode_gain_scaling_) && ur_driver_ != nullptr) {
-      start_force_mode();
+      start_force_mode(FORCE_MODE_GPIO);
+    } else if (!std::isnan(dynamic_force_mode_task_frame_[0]) && !std::isnan(dynamic_force_mode_selection_vector_[0]) &&
+               !std::isnan(dynamic_force_mode_wrench_[0]) && !std::isnan(dynamic_force_mode_type_) &&
+               !std::isnan(dynamic_force_mode_limits_[0]) && !std::isnan(dynamic_force_mode_damping_) &&
+               !std::isnan(dynamic_force_mode_gain_scaling_) && ur_driver_ != nullptr) {
+      start_force_mode(DYNAMIC_FORCE_MODE_GPIO);
     } else if (!std::isnan(force_mode_disable_cmd_) && ur_driver_ != nullptr && force_mode_async_success_ == 2.0) {
-      stop_force_mode();
+      stop_force_mode(FORCE_MODE_GPIO);
+    } else if (!std::isnan(dynamic_force_mode_disable_cmd_) && ur_driver_ != nullptr &&
+               dynamic_force_mode_async_success_ == 2.0) {
+      stop_force_mode(DYNAMIC_FORCE_MODE_GPIO);
     }
-
     packet_read_ = false;
   }
 
@@ -874,8 +909,8 @@ void URPositionHardwareInterface::initAsyncIO()
   payload_mass_ = NO_NEW_CMD_;
   payload_center_of_gravity_ = { NO_NEW_CMD_, NO_NEW_CMD_, NO_NEW_CMD_ };
 
-  force_mode_damping_dynamic_ = NO_NEW_CMD_;
-  force_mode_gain_scaling_dynamic_ = NO_NEW_CMD_;
+  dynamic_force_mode_params_srv_damping_ = NO_NEW_CMD_;
+  dynamic_force_mode_params_srv_gain_scaling_ = NO_NEW_CMD_;
 }
 
 void URPositionHardwareInterface::checkAsyncIO()
@@ -950,19 +985,19 @@ void URPositionHardwareInterface::checkAsyncIO()
     zero_ftsensor_cmd_ = NO_NEW_CMD_;
   }
 
-  if (!std::isnan(force_mode_damping_dynamic_) && !std::isnan(force_mode_gain_scaling_dynamic_) &&
+  if (!std::isnan(dynamic_force_mode_params_srv_damping_) && !std::isnan(dynamic_force_mode_params_srv_gain_scaling_) &&
       ur_driver_ != nullptr) {
-    force_mode_params_async_success_ =
-        ur_driver_->setForceModeParams(force_mode_damping_dynamic_, force_mode_gain_scaling_dynamic_);
-    force_mode_damping_dynamic_ = NO_NEW_CMD_;
-    force_mode_gain_scaling_dynamic_ = NO_NEW_CMD_;
+    dynamic_force_mode_params_srv_async_success_ = ur_driver_->setForceModeParams(
+        dynamic_force_mode_params_srv_damping_, dynamic_force_mode_params_srv_gain_scaling_);
+    dynamic_force_mode_params_srv_damping_ = NO_NEW_CMD_;
+    dynamic_force_mode_params_srv_gain_scaling_ = NO_NEW_CMD_;
   }
 
   if (!std::isnan(freedrive_mode_enable_) && ur_driver_ != nullptr) {
     RCLCPP_INFO(rclcpp::get_logger("URPosistionHardwareInterface"), "Starting freedrive mode.");
 
     // Use the most-recently stored freeAxes and feature variables
-    auto free_axes = urcl::control::ReverseInterface::FreeAxes(freedrive_params_vector_);
+    auto free_axes = urcl::control::ReverseInterface::BinaryArray(freedrive_params_vector_);
     RCLCPP_INFO(rclcpp::get_logger("URPosistionHardwareInterface"), "Freedrive free axes: %d", free_axes.ToS32Buffer());
     RCLCPP_INFO(rclcpp::get_logger("URPosistionHardwareInterface"), "Axes: %f %f %f %f %f %f",
                 freedrive_params_vector_[0], freedrive_params_vector_[1], freedrive_params_vector_[2],
@@ -1084,6 +1119,9 @@ hardware_interface::return_type URPositionHardwareInterface::prepare_command_mod
     if (freedrive_mode_controller_running_) {
       control_modes[i].push_back(FREEDRIVE_MODE_GPIO);
     }
+    if (dynamic_force_mode_controller_running_) {
+      control_modes[i].push_back(DYNAMIC_FORCE_MODE_GPIO);
+    }
   }
 
   if (!std::all_of(start_modes_.begin() + 1, start_modes_.end(),
@@ -1183,6 +1221,7 @@ hardware_interface::return_type URPositionHardwareInterface::prepare_command_mod
                                               [&](const std::string& item) { return item == FREEDRIVE_MODE_GPIO; }),
                                control_modes[i].end());
       }
+      // TODO(george): need to flesh out control mode before updating here
     }
   }
 
@@ -1211,11 +1250,11 @@ hardware_interface::return_type URPositionHardwareInterface::prepare_command_mod
       (std::any_of(start_modes_[0].begin(), start_modes_[0].end(),
                    [this](auto& item) {
                      return (item == hardware_interface::HW_IF_VELOCITY || item == hardware_interface::HW_IF_POSITION ||
-                             item == FREEDRIVE_MODE_GPIO);
+                             item == FREEDRIVE_MODE_GPIO || item == DYNAMIC_FORCE_MODE_GPIO);
                    }) ||
        std::any_of(control_modes[0].begin(), control_modes[0].end(), [this](auto& item) {
          return (item == hardware_interface::HW_IF_VELOCITY || item == hardware_interface::HW_IF_POSITION ||
-                 item == FORCE_MODE_GPIO || item == FREEDRIVE_MODE_GPIO);
+                 item == FORCE_MODE_GPIO || item == FREEDRIVE_MODE_GPIO || item == DYNAMIC_FORCE_MODE_GPIO);
        }))) {
     RCLCPP_ERROR(rclcpp::get_logger("URPosistionHardwareInterface"), "Attempting to start force mode control while "
                                                                      "there is either position or "
@@ -1229,13 +1268,33 @@ hardware_interface::return_type URPositionHardwareInterface::prepare_command_mod
       (std::any_of(start_modes_[0].begin(), start_modes_[0].end(),
                    [this](auto& item) {
                      return (item == hardware_interface::HW_IF_VELOCITY || item == hardware_interface::HW_IF_POSITION ||
-                             item == PASSTHROUGH_GPIO || item == FORCE_MODE_GPIO);
+                             item == PASSTHROUGH_GPIO || item == FORCE_MODE_GPIO || item == DYNAMIC_FORCE_MODE_GPIO);
                    }) ||
        std::any_of(control_modes[0].begin(), control_modes[0].end(), [this](auto& item) {
          return (item == hardware_interface::HW_IF_VELOCITY || item == hardware_interface::HW_IF_POSITION ||
-                 item == PASSTHROUGH_GPIO || item == FORCE_MODE_GPIO);
+                 item == PASSTHROUGH_GPIO || item == FORCE_MODE_GPIO || item == DYNAMIC_FORCE_MODE_GPIO);
        }))) {
     RCLCPP_ERROR(rclcpp::get_logger("URPosistionHardwareInterface"), "Attempting to start freedrive mode control while "
+                                                                     "there is either position, passthrough "
+                                                                     "trajectory, or "
+                                                                     "velocity mode running.");
+    ret_val = hardware_interface::return_type::ERROR;
+  }
+
+  // Dynamic force mode requested to start, pretty much same logic as regular force mode
+  if (std::any_of(start_modes_[0].begin(), start_modes_[0].end(),
+                  [this](auto& item) { return (item == DYNAMIC_FORCE_MODE_GPIO); }) &&
+      (std::any_of(start_modes_[0].begin(), start_modes_[0].end(),
+                   [this](auto& item) {
+                     return (item == hardware_interface::HW_IF_VELOCITY || item == hardware_interface::HW_IF_POSITION ||
+                             item == FREEDRIVE_MODE_GPIO || item == FORCE_MODE_GPIO);
+                   }) ||
+       std::any_of(control_modes[0].begin(), control_modes[0].end(), [this](auto& item) {
+         return (item == hardware_interface::HW_IF_VELOCITY || item == hardware_interface::HW_IF_POSITION ||
+                 item == FORCE_MODE_GPIO || item == FREEDRIVE_MODE_GPIO);
+       }))) {
+    RCLCPP_ERROR(rclcpp::get_logger("URPosistionHardwareInterface"), "Attempting to start dynamic force mode control "
+                                                                     "while "
                                                                      "there is either position or "
                                                                      "velocity mode running.");
     ret_val = hardware_interface::return_type::ERROR;
@@ -1299,7 +1358,7 @@ hardware_interface::return_type URPositionHardwareInterface::perform_command_mod
   } else if (stop_modes_[0].size() != 0 && std::find(stop_modes_[0].begin(), stop_modes_[0].end(),
                                                      StoppingInterface::STOP_FORCE_MODE) != stop_modes_[0].end()) {
     force_mode_controller_running_ = false;
-    stop_force_mode();
+    stop_force_mode(FORCE_MODE_GPIO);
   } else if (stop_modes_[0].size() != 0 && std::find(stop_modes_[0].begin(), stop_modes_[0].end(),
                                                      StoppingInterface::STOP_PASSTHROUGH) != stop_modes_[0].end()) {
     passthrough_trajectory_controller_running_ = false;
@@ -1312,6 +1371,11 @@ hardware_interface::return_type URPositionHardwareInterface::perform_command_mod
     freedrive_mode_controller_running_ = false;
     freedrive_activated_ = false;
     freedrive_mode_abort_ = 1.0;
+  } else if (stop_modes_[0].size() != 0 &&
+             std::find(stop_modes_[0].begin(), stop_modes_[0].end(), StoppingInterface::STOP_DYNAMIC_FORCE_MODE) !=
+                 stop_modes_[0].end()) {
+    dynamic_force_mode_controller_running_ = false;
+    stop_force_mode(DYNAMIC_FORCE_MODE_GPIO);
   }
 
   if (start_modes_.size() != 0 && std::find(start_modes_[0].begin(), start_modes_[0].end(),
@@ -1342,6 +1406,10 @@ hardware_interface::return_type URPositionHardwareInterface::perform_command_mod
     position_controller_running_ = false;
     freedrive_mode_controller_running_ = true;
     freedrive_activated_ = false;
+  } else if (start_modes_[0].size() != 0 && std::find(start_modes_[0].begin(), start_modes_[0].end(),
+                                                      DYNAMIC_FORCE_MODE_GPIO) != start_modes_[0].end()) {
+    // TODO(george): reset dynamic variables
+    dynamic_force_mode_controller_running_ = true;
   }
 
   start_modes_.clear();
@@ -1350,17 +1418,24 @@ hardware_interface::return_type URPositionHardwareInterface::perform_command_mod
   return ret_val;
 }
 
-void URPositionHardwareInterface::start_force_mode()
+void URPositionHardwareInterface::start_force_mode(const std::string& force_mode_gpio)
 {
-  for (size_t i = 0; i < force_mode_selection_vector_.size(); i++) {
-    force_mode_selection_vector_copy_[i] = force_mode_selection_vector_[i];
+  urcl::vector6uint32_t force_mode_selection_vector_copy;
+
+  for (size_t i = 0; i < force_mode_selection_vector_copy.size(); i++) {
+    force_mode_selection_vector_copy[i] =
+        DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_selection_vector_[i]);
   }
   /* Check version of robot to ensure that the correct startForceMode is called. */
   if (ur_driver_->getVersion().major < 5) {
-    force_mode_async_success_ =
-        ur_driver_->startForceMode(force_mode_task_frame_, force_mode_selection_vector_copy_, force_mode_wrench_,
-                                   force_mode_type_, force_mode_limits_, force_mode_damping_);
-    if (force_mode_gain_scaling_ != 0.5) {
+    DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_async_success_) = ur_driver_->startForceMode(
+        DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_task_frame_),
+        force_mode_selection_vector_copy, DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_wrench_),
+        DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_type_),
+        DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_limits_),
+        DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_damping_));
+
+    if (DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_gain_scaling_) != 0.5) {
       RCLCPP_WARN(rclcpp::get_logger("URPositionHardwareInterface"), "Force mode gain scaling cannot be used on "
                                                                      "CB3 "
                                                                      "robots. Starting force mode, but "
@@ -1368,26 +1443,31 @@ void URPositionHardwareInterface::start_force_mode()
                                                                      "gain scaling.");
     }
   } else {
-    force_mode_async_success_ =
-        ur_driver_->startForceMode(force_mode_task_frame_, force_mode_selection_vector_copy_, force_mode_wrench_,
-                                   force_mode_type_, force_mode_limits_, force_mode_damping_, force_mode_gain_scaling_);
+    DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_async_success_) = ur_driver_->startForceMode(
+        DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_task_frame_),
+        force_mode_selection_vector_copy, DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_wrench_),
+        DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_type_),
+        DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_limits_),
+        DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_damping_),
+        DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_gain_scaling_));
   }
 
   for (size_t i = 0; i < 6; i++) {
-    force_mode_task_frame_[i] = NO_NEW_CMD_;
-    force_mode_selection_vector_[i] = static_cast<uint32_t>(NO_NEW_CMD_);
-    force_mode_wrench_[i] = NO_NEW_CMD_;
-    force_mode_limits_[i] = NO_NEW_CMD_;
+    DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_task_frame_[i]) = NO_NEW_CMD_;
+    DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_selection_vector_[i]) =
+        static_cast<uint32_t>(NO_NEW_CMD_);
+    DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_wrench_[i]) = NO_NEW_CMD_;
+    DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_limits_[i]) = NO_NEW_CMD_;
   }
-  force_mode_type_ = static_cast<unsigned int>(NO_NEW_CMD_);
-  force_mode_damping_ = NO_NEW_CMD_;
-  force_mode_gain_scaling_ = NO_NEW_CMD_;
+  DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_type_) = static_cast<unsigned int>(NO_NEW_CMD_);
+  DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_damping_) = NO_NEW_CMD_;
+  DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_gain_scaling_) = NO_NEW_CMD_;
 }
 
-void URPositionHardwareInterface::stop_force_mode()
+void URPositionHardwareInterface::stop_force_mode(const std::string& force_mode_gpio)
 {
-  force_mode_async_success_ = ur_driver_->endForceMode();
-  force_mode_disable_cmd_ = NO_NEW_CMD_;
+  DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_async_success_) = ur_driver_->endForceMode();
+  DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_disable_cmd_) = NO_NEW_CMD_;
 }
 
 void URPositionHardwareInterface::check_passthrough_trajectory_controller()

@@ -15,12 +15,3 @@ dynamic_path_force_mode_controller:
     default_value: 10,
     description: "Amount of retries for checking if setting dynamic force_mode was successful"
   }
-  joints: {
-    type: string_array,
-    default_value: [],
-    description: "Joint names to claim and listen to",
-    read_only: true,
-    validation: {
-      unique<>: null,
-    }
-  }

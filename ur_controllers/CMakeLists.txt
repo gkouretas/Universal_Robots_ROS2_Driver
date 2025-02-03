@@ -82,6 +82,11 @@ generate_parameter_library(
 )
 
 generate_parameter_library(
+  dynamic_path_force_mode_controller_parameters
+  src/dynamic_path_force_mode_controller_parameters.yaml
+)
+
+generate_parameter_library(
   ur_configuration_controller_parameters
   src/ur_configuration_controller_parameters.yaml
 )
@@ -93,6 +98,7 @@ add_library(${PROJECT_NAME} SHARED
   src/freedrive_mode_controller.cpp
   src/gpio_controller.cpp
   src/passthrough_trajectory_controller.cpp
+  src/dynamic_path_force_mode_controller.cpp
   src/ur_configuration_controller.cpp)
 
 target_include_directories(${PROJECT_NAME} PRIVATE
@@ -105,6 +111,7 @@ target_link_libraries(${PROJECT_NAME}
   scaled_joint_trajectory_controller_parameters
   freedrive_mode_controller_parameters
   passthrough_trajectory_controller_parameters
+  dynamic_path_force_mode_controller_parameters
   ur_configuration_controller_parameters
 )
 ament_target_dependencies(${PROJECT_NAME}
