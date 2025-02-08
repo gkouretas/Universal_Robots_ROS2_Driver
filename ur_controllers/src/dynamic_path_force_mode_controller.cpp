@@ -47,6 +47,11 @@ static double duration_to_double(const builtin_interfaces::msg::Duration& durati
   return duration.sec + (duration.nanosec / 1000000000.0);
 }
 
+static double time_to_double(const builtin_interfaces::msg::Time& time)
+{
+  return time.sec + (time.nanosec / 1000000000.0);
+}
+
 namespace ur_controllers
 {
 controller_interface::CallbackReturn DynamicPathForceModeController::on_init()
@@ -55,6 +60,8 @@ controller_interface::CallbackReturn DynamicPathForceModeController::on_init()
     // Create the parameter listener and get the parameters
     param_listener_ = std::make_shared<dynamic_path_force_mode_controller::ParamListener>(get_node());
     params_ = param_listener_->get_params();
+    current_index_ = 0;
+    initial_time_ = 0.0;
   } catch (const std::exception& e) {
     fprintf(stderr, "Exception thrown during init stage with message: %s \n", e.what());
     return CallbackReturn::ERROR;
@@ -181,6 +188,11 @@ ur_controllers::DynamicPathForceModeController::on_cleanup(const rclcpp_lifecycl
   return CallbackReturn::SUCCESS;
 }
 
+double DynamicPathForceModeController::time_from_start(const builtin_interfaces::msg::Time& time) const
+{
+  return time_to_double(time) - initial_time_;
+}
+
 void DynamicPathForceModeController::initialize_force_mode()
 {
   const auto force_mode_parameters = force_mode_params_buffer_.readFromRT();
@@ -239,10 +251,99 @@ void DynamicPathForceModeController::initialize_force_mode()
   command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_ASYNC_SUCCESS].set_value(ASYNC_WAITING);
 }
 
-void DynamicPathForceModeController::update_trajectory_points()
+void DynamicPathForceModeController::update_pose_actual_desired(std::shared_ptr<RealtimeGoalHandle> active_goal)
 {
-  // TODO(george): fill this out
-  return;
+  auto goal = active_goal->gh_->get_goal();
+  auto _tf = tf_buffer_->transform(goal->task_frame, params_.tf_prefix + "base");
+
+  pose_actual_.setOrigin(tf2::Vector3(_tf.pose.position.x, _tf.pose.position.y, _tf.pose.position.z));
+  pose_actual_.setRotation(
+      tf2::Quaternion(_tf.pose.orientation.x, _tf.pose.orientation.y, _tf.pose.orientation.z, _tf.pose.orientation.w));
+
+  size_t _index = current_index_;
+  double _t0, _t1;
+  bool _found = false;
+
+  kp * (_current_duration - t0(?)) + ...
+  const double _current_duration = duration_to_double(active_path_elapsed_time_);
+
+  while (_index < active_path_.poses.size() - 1) {
+    _t0 = time_from_start(active_path_.poses[_index].header.stamp);
+    _t1 = time_from_start(active_path_.poses[_index + 1].header.stamp);
+    if (_current_duration >= _t0 && _current_duration <= _t1) {
+      pose_desired_ = interpolate_poses(active_path_.poses[_index].pose, active_path_.poses[_index + 1].pose,
+                                        std::clamp(((_current_duration - _t0) / (_t1 - _t0)), 0.0, 1.0));
+      _found = true;
+      break;
+    }
+    _index++;
+  }
+
+  if (!_found) {
+    // Set the desired pose to the final pose if we are unable to interpolate
+    _tf = active_path_.poses.back();
+    pose_desired_.setOrigin(tf2::Vector3(_tf.pose.position.x, _tf.pose.position.y, _tf.pose.position.z));
+    pose_desired_.setRotation(tf2::Quaternion(_tf.pose.orientation.x, _tf.pose.orientation.y, _tf.pose.orientation.z,
+                                              _tf.pose.orientation.w));
+  }
+}
+
+tf2::Transform DynamicPathForceModeController::interpolate_poses(geometry_msgs::msg::Pose& t1,
+                                                                 geometry_msgs::msg::Pose& t2, double factor)
+{
+  tf2::Transform tf_out, tf2_t1, tf2_t2;
+
+  tf2_t1.setOrigin(tf2::Vector3(t1.position.x, t1.position.y, t1.position.z));
+  tf2_t1.setRotation(tf2::Quaternion(t1.orientation.x, t1.orientation.y, t1.orientation.z, t1.orientation.w));
+
+  tf2_t2.setOrigin(tf2::Vector3(t2.position.x, t2.position.y, t2.position.z));
+  tf2_t2.setRotation(tf2::Quaternion(t2.orientation.x, t2.orientation.y, t2.orientation.z, t2.orientation.w));
+
+  auto dt = ((1.0 - factor) * tf2_t1.getOrigin()) + (factor * tf2_t2.getOrigin());
+  auto dq = tf2_t1.getRotation().slerp(tf2_t2.getRotation(), factor);
+
+  tf_out.setOrigin(dt);
+  tf_out.setRotation(dq);
+
+  return tf_out;
+}
+
+void DynamicPathForceModeController::update_trajectory_points(std::shared_ptr<RealtimeGoalHandle> active_goal)
+{
+  const auto current_transfer_state = transfer_command_interface_->get().get_value();
+
+  if (current_transfer_state != TRANSFER_STATE_IDLE) {
+    // Check if the trajectory has been aborted from the hardware interface. E.g. the robot was stopped on the teach
+    // pendant.
+    if (abort_command_interface_->get().get_value() == 1.0 && current_index_ > 0) {
+      RCLCPP_INFO(get_node()->get_logger(), "Trajectory aborted by hardware, aborting action.");
+      std::shared_ptr<DynamicForceModeAction::Result> result = std::make_shared<DynamicForceModeAction::Result>();
+      active_goal->setAborted(result);
+      end_goal();
+      return;
+    }
+  }
+
+  // Update speed scaling factor
+  if (scaling_state_interface_.has_value()) {
+    scaling_factor_ = scaling_state_interface_->get().get_value();
+  }
+
+  active_path_ = active_goal->gh_->get_goal()->force_mode_path;
+  if (current_index_ == 0 && current_transfer_state == TRANSFER_STATE_IDLE) {
+    active_path_elapsed_time_ = rclcpp::Duration(0, 0);
+    max_path_trajectory_time_ = rclcpp::Duration::from_seconds(time_from_start(active_path_.poses.back().header.stamp));
+    transfer_command_interface_->get().set_value(TRANSFER_STATE_WAITING_FOR_POINT);
+  }
+
+  if (current_transfer_state == TRANSFER_STATE_WAITING_FOR_POINT) {
+    if (current_index_ < active_path_.poses.size()) {
+      time_from_start_command_interface_->get().set_value(
+          time_from_start(active_path_.poses[current_index_].header.stamp));
+
+      update_pose_actual_desired(active_goal);
+    }
+  }
 }
 
 controller_interface::return_type
@@ -261,163 +362,140 @@ ur_controllers::DynamicPathForceModeController::update(const rclcpp::Time& /*tim
       async_state_ = ASYNC_WAITING;
     }
     change_requested_ = false;
-  } else if (force_mode_active_) {
+  }
+
+  const auto active_goal = *rt_active_goal_.readFromRT();
+  if (active_goal && force_mode_active_) {
     // Update dynamic force mode parameters
     auto logger = this->get_node()->get_logger();
 
-    // Update speed scaling factor
-    if (scaling_state_interface_.has_value()) {
-      scaling_factor_ = scaling_state_interface_->get().get_value();
-    }
-
-    update_trajectory_points();
+    update_trajectory_points(active_goal);
   }
 
   return controller_interface::return_type::OK;
 }
 
-bool DynamicPathForceModeController::setForceMode(const DynamicForceModeParameters& req)
+bool DynamicPathForceModeController::waitForAsyncCommand(std::function<double(void)> get_value)
 {
-  // // Reject if controller is not active
-  // if (get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
-  //   RCLCPP_ERROR(get_node()->get_logger(), "Can't accept new requests. Controller is not running.");
-  //   resp->success = false;
-  //   return false;
-  // }
+  const auto maximum_retries = dynamic_force_mode_params_.check_io_successful_retries;
+  int retries = 0;
+  while (get_value() == ASYNC_WAITING) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    retries++;
 
-  // DynamicForceModeParameters force_mode_parameters;
+    if (retries > maximum_retries)
+      return false;
+  }
+  return true;
+}
 
-  // // transform task frame into base
-  // const std::string tf_prefix = params_.tf_prefix;
-  // if (std::abs(req->task_frame.pose.orientation.x) < 1e-6 && std::abs(req->task_frame.pose.orientation.y) < 1e-6 &&
-  //     std::abs(req->task_frame.pose.orientation.z) < 1e-6 && std::abs(req->task_frame.pose.orientation.w) < 1e-6) {
-  //   RCLCPP_ERROR(get_node()->get_logger(), "Received task frame with all-zeros quaternion. It should have at least
-  //   one "
-  //                                          "non-zero entry.");
-  //   resp->success = false;
-  //   return false;
-  // }
+bool DynamicPathForceModeController::setForceMode(const ForceModeRequest* req)
+{
+  // Reject if controller is not active
+  if (get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
+    RCLCPP_ERROR(get_node()->get_logger(), "Can't accept new requests. Controller is not running.");
+    return false;
+  }
 
-  // try {
-  //   auto task_frame_transformed = tf_buffer_->transform(req->task_frame, tf_prefix + "base");
+  DynamicForceModeParameters force_mode_parameters;
 
-  //   force_mode_parameters.initial_task_frame[0] = task_frame_transformed.pose.position.x;
-  //   force_mode_parameters.initial_task_frame[1] = task_frame_transformed.pose.position.y;
-  //   force_mode_parameters.initial_task_frame[2] = task_frame_transformed.pose.position.z;
+  // transform task frame into base
+  const std::string tf_prefix = params_.tf_prefix;
+  if (std::abs(req->task_frame.pose.orientation.x) < 1e-6 && std::abs(req->task_frame.pose.orientation.y) < 1e-6 &&
+      std::abs(req->task_frame.pose.orientation.z) < 1e-6 && std::abs(req->task_frame.pose.orientation.w) < 1e-6) {
+    RCLCPP_ERROR(get_node()->get_logger(), "Received task frame with all-zeros quaternion. It should have at least one "
+                                           "non-zero entry.");
+    return false;
+  }
 
-  //   tf2::Quaternion quat_tf;
-  //   tf2::convert(task_frame_transformed.pose.orientation, quat_tf);
-  //   tf2::Matrix3x3 rot_mat(quat_tf);
-  //   rot_mat.getRPY(force_mode_parameters.initial_task_frame[3], force_mode_parameters.initial_task_frame[4],
-  //                  force_mode_parameters.initial_task_frame[5]);
-  // } catch (const tf2::TransformException& ex) {
-  //   RCLCPP_ERROR(get_node()->get_logger(), "Could not transform %s to robot base: %s",
-  //                req->task_frame.header.frame_id.c_str(), ex.what());
-  //   resp->success = false;
-  //   return false;
-  // }
+  try {
+    auto task_frame_transformed = tf_buffer_->transform(req->task_frame, tf_prefix + "base");
 
-  // // The selection vector dictates which axes the robot should be compliant along and around
-  // force_mode_parameters.initial_selection_vec[0] = req->selection_vector_x;
-  // force_mode_parameters.initial_selection_vec[1] = req->selection_vector_y;
-  // force_mode_parameters.initial_selection_vec[2] = req->selection_vector_z;
-  // force_mode_parameters.initial_selection_vec[3] = req->selection_vector_rx;
-  // force_mode_parameters.initial_selection_vec[4] = req->selection_vector_ry;
-  // force_mode_parameters.initial_selection_vec[5] = req->selection_vector_rz;
+    force_mode_parameters.initial_task_frame[0] = task_frame_transformed.pose.position.x;
+    force_mode_parameters.initial_task_frame[1] = task_frame_transformed.pose.position.y;
+    force_mode_parameters.initial_task_frame[2] = task_frame_transformed.pose.position.z;
 
-  // // The wrench parameters dictate the amount of force/torque the robot will apply to its environment. The robot will
-  // // move along/around compliant axes to match the specified force/torque. Has no effect for non-compliant axes.
-  // force_mode_parameters.initial_wrench = req->wrench;
+    tf2::Quaternion quat_tf;
+    tf2::convert(task_frame_transformed.pose.orientation, quat_tf);
+    tf2::Matrix3x3 rot_mat(quat_tf);
+    rot_mat.getRPY(force_mode_parameters.initial_task_frame[3], force_mode_parameters.initial_task_frame[4],
+                   force_mode_parameters.initial_task_frame[5]);
+  } catch (const tf2::TransformException& ex) {
+    RCLCPP_ERROR(get_node()->get_logger(), "Could not transform %s to robot base: %s",
+                 req->task_frame.header.frame_id.c_str(), ex.what());
+    return false;
+  }
 
-  // /* The limits specifies the maximum allowed speed along/around compliant axes. For non-compliant axes this value is
-  //  * the maximum allowed deviation between actual tcp position and the one that has been programmed. */
-  // force_mode_parameters.limits[0] = req->selection_vector_x ? req->speed_limits.linear.x : req->deviation_limits[0];
-  // force_mode_parameters.limits[1] = req->selection_vector_y ? req->speed_limits.linear.y : req->deviation_limits[1];
-  // force_mode_parameters.limits[2] = req->selection_vector_z ? req->speed_limits.linear.z : req->deviation_limits[2];
-  // force_mode_parameters.limits[3] = req->selection_vector_rx ? req->speed_limits.angular.x :
-  // req->deviation_limits[3]; force_mode_parameters.limits[4] = req->selection_vector_ry ? req->speed_limits.angular.y
-  // : req->deviation_limits[4]; force_mode_parameters.limits[5] = req->selection_vector_rz ?
-  // req->speed_limits.angular.z : req->deviation_limits[5];
+  // The selection vector dictates which axes the robot should be compliant along and around
+  force_mode_parameters.initial_selection_vec[0] = req->selection_vector_x;
+  force_mode_parameters.initial_selection_vec[1] = req->selection_vector_y;
+  force_mode_parameters.initial_selection_vec[2] = req->selection_vector_z;
+  force_mode_parameters.initial_selection_vec[3] = req->selection_vector_rx;
+  force_mode_parameters.initial_selection_vec[4] = req->selection_vector_ry;
+  force_mode_parameters.initial_selection_vec[5] = req->selection_vector_rz;
 
-  // if (req->type < 1 || req->type > 3) {
-  //   RCLCPP_ERROR(get_node()->get_logger(), "The force mode type has to be 1, 2, or 3. Received %u", req->type);
-  //   resp->success = false;
-  //   return false;
-  // }
+  // The wrench parameters dictate the amount of force/torque the robot will apply to its environment. The robot will
+  // move along/around compliant axes to match the specified force/torque. Has no effect for non-compliant axes.
+  force_mode_parameters.initial_wrench = req->wrench;
 
-  // /* The type decides how the robot interprets the force frame (the one defined in task_frame). See ur_script manual
-  //  * for explanation, under dynamic_force_mode. */
-  // force_mode_parameters.type = static_cast<double>(req->type);
+  /* The limits specifies the maximum allowed speed along/around compliant axes. For non-compliant axes this value is
+   * the maximum allowed deviation between actual tcp position and the one that has been programmed. */
+  force_mode_parameters.limits[0] = req->selection_vector_x ? req->speed_limits.linear.x : req->deviation_limits[0];
+  force_mode_parameters.limits[1] = req->selection_vector_y ? req->speed_limits.linear.y : req->deviation_limits[1];
+  force_mode_parameters.limits[2] = req->selection_vector_z ? req->speed_limits.linear.z : req->deviation_limits[2];
+  force_mode_parameters.limits[3] = req->selection_vector_rx ? req->speed_limits.angular.x : req->deviation_limits[3];
+  force_mode_parameters.limits[4] = req->selection_vector_ry ? req->speed_limits.angular.y : req->deviation_limits[4];
+  force_mode_parameters.limits[5] = req->selection_vector_rz ? req->speed_limits.angular.z : req->deviation_limits[5];
 
-  // /* The damping factor decides how fast the robot decelarates if no force is present. 0 means no deceleration, 1
-  //  * means quick deceleration*/
-  // if (req->damping_factor < 0.0 || req->damping_factor > 1.0) {
-  //   RCLCPP_ERROR(get_node()->get_logger(), "The damping factor has to be between 0 and 1. Received %f",
-  //                req->damping_factor);
-  //   resp->success = false;
-  //   return false;
-  // }
-  // force_mode_parameters.damping_factor = req->damping_factor;
+  if (req->type < 1 || req->type > 3) {
+    RCLCPP_ERROR(get_node()->get_logger(), "The force mode type has to be 1, 2, or 3. Received %u", req->type);
+    return false;
+  }
 
-  // /*The gain scaling factor scales the force mode gain. A value larger than 1 may make force mode unstable. */
-  // if (req->gain_scaling < 0.0 || req->gain_scaling > 2.0) {
-  //   RCLCPP_ERROR(get_node()->get_logger(), "The gain scaling has to be between 0 and 2. Received %f",
-  //                req->gain_scaling);
-  //   resp->success = false;
-  //   return false;
-  // }
-  // if (req->gain_scaling > 1.0) {
-  //   RCLCPP_WARN(get_node()->get_logger(),
-  //               "A gain_scaling >1.0 can make force mode unstable, e.g. in case of collisions or pushing against "
-  //               "hard surfaces. Received %f",
-  //               req->gain_scaling);
-  // }
-  // force_mode_parameters.gain_scaling = req->gain_scaling;
+  /* The type decides how the robot interprets the force frame (the one defined in task_frame). See ur_script manual
+   * for explanation, under dynamic_force_mode. */
+  force_mode_parameters.type = static_cast<double>(req->type);
 
-  // force_mode_params_buffer_.writeFromNonRT(force_mode_parameters);
-  // force_mode_active_ = true;
-  // change_requested_ = true;
+  /* The damping factor decides how fast the robot decelarates if no force is present. 0 means no deceleration, 1
+   * means quick deceleration*/
+  if (req->damping_factor < 0.0 || req->damping_factor > 1.0) {
+    RCLCPP_ERROR(get_node()->get_logger(), "The damping factor has to be between 0 and 1. Received %f",
+                 req->damping_factor);
+    return false;
+  }
+  force_mode_parameters.damping_factor = req->damping_factor;
 
-  // RCLCPP_DEBUG(get_node()->get_logger(), "Waiting for dynamic force mode to be set.");
-  // const auto maximum_retries = params_.check_io_successful_retries;
-  // int retries = 0;
-  // while (async_state_ == ASYNC_WAITING || change_requested_) {
-  //   std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  //   retries++;
+  /*The gain scaling factor scales the force mode gain. A value larger than 1 may make force mode unstable. */
+  if (req->gain_scaling < 0.0 || req->gain_scaling > 2.0) {
+    RCLCPP_ERROR(get_node()->get_logger(), "The gain scaling has to be between 0 and 2. Received %f",
+                 req->gain_scaling);
+    return false;
+  }
+  if (req->gain_scaling > 1.0) {
+    RCLCPP_WARN(get_node()->get_logger(),
+                "A gain_scaling >1.0 can make force mode unstable, e.g. in case of collisions or pushing against "
+                "hard surfaces. Received %f",
+                req->gain_scaling);
+  }
+  force_mode_parameters.gain_scaling = req->gain_scaling;
 
-  //   if (retries > maximum_retries) {
-  //     resp->success = false;
-  //   }
-  // }
-
-  // resp->success = async_state_ == 1.0;
-
-  // if (resp->success) {
-  //   RCLCPP_INFO(get_node()->get_logger(), "Dynamic force mode has been set successfully.");
-  // } else {
-  //   RCLCPP_ERROR(get_node()->get_logger(), "Could not set the dynamic force mode.");
-  //   return false;
-  // }
+  force_mode_params_buffer_.writeFromNonRT(force_mode_parameters);
 
   return true;
 }
 
 bool DynamicPathForceModeController::disableForceMode()
 {
-  // force_mode_active_ = false;
-  // change_requested_ = true;
-  // RCLCPP_DEBUG(get_node()->get_logger(), "Waiting for dynamic force mode to be disabled.");
-  // while (async_state_ == ASYNC_WAITING || change_requested_) {
-  //   // Asynchronous wait until the hardware interface has set the force mode
-  //   std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  // }
-  // resp->success = async_state_ == 1.0;
-  // if (resp->success) {
-  //   RCLCPP_INFO(get_node()->get_logger(), "Dynamic force mode has been disabled successfully.");
-  // } else {
-  //   RCLCPP_ERROR(get_node()->get_logger(), "Could not disable dynamic force mode.");
-  //   return false;
-  // }
+  force_mode_active_ = false;
+  change_requested_ = true;
+
+  if (!waitForAsyncCommand(
+          [&]() { return command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_ASYNC_SUCCESS].get_value(); })) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not verify that dynamic force mode was set. (This might happen when "
+                                          "using the "
+                                          "mocked interface)");
+  }
+
   return true;
 }
 
@@ -438,6 +516,21 @@ rclcpp_action::GoalResponse DynamicPathForceModeController::goal_received_callba
     return rclcpp_action::GoalResponse::REJECT;
   }
 
+  // If we have not rejected the goal, attempt to set force mode
+  ForceModeRequest req;
+  req.task_frame = goal->task_frame;
+  // selection vector defaults to null, so no additional assignment
+  req.type = goal->type;
+  req.speed_limits = goal->speed_limits;
+  req.deviation_limits = goal->deviation_limits;
+  req.damping_factor = goal->damping_factor;
+  req.gain_scaling = goal->gain_scaling;
+
+  if (!setForceMode(&req)) {
+    RCLCPP_ERROR(get_node()->get_logger(), "Unable to set force mode.");
+    return rclcpp_action::GoalResponse::REJECT;
+  }
+
   return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
 
@@ -446,6 +539,7 @@ rclcpp_action::CancelResponse DynamicPathForceModeController::goal_cancelled_cal
 {
   // Check that cancel request refers to currently active goal (if any)
   const auto active_goal = *rt_active_goal_.readFromNonRT();
+
   if (active_goal && active_goal->gh_ == goal_handle) {
     RCLCPP_INFO(get_node()->get_logger(), "Cancelling active trajectory requested.");
 
@@ -453,7 +547,8 @@ rclcpp_action::CancelResponse DynamicPathForceModeController::goal_cancelled_cal
     auto result = std::make_shared<DynamicForceModeAction::Result>();
     active_goal->setCanceled(result);
     rt_active_goal_.writeFromNonRT(RealtimeGoalHandlePtr());
-    force_mode_active_ = false;
+
+    disableForceMode();
   }
   return rclcpp_action::CancelResponse::ACCEPT;
 }
@@ -468,13 +563,30 @@ void DynamicPathForceModeController::goal_accepted_callback(
 
   // TODO(george): accepted callback contents
   RealtimeGoalHandlePtr rt_goal = std::make_shared<RealtimeGoalHandle>(goal_handle);
+
+  current_index_ = 0;
+  initial_time_ = time_to_double(goal_handle->get_goal()->force_mode_path.poses[0].header.stamp);
+
+  // Activate force mode and make change request
   force_mode_active_ = true;
+  change_requested_ = true;
+
+  // Wait for change to occur
+  if (!waitForAsyncCommand(
+          [&]() { return command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_ASYNC_SUCCESS].get_value(); })) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not verify that dynamic force mode was set. (This might happen when "
+                                          "using the "
+                                          "mocked interface)");
+  }
+
+  rt_active_goal_.writeFromNonRT(rt_goal);
+
   return;
 }
 
 void DynamicPathForceModeController::end_goal()
 {
-  force_mode_active_ = false;
+  disableForceMode();
   transfer_command_interface_->get().set_value(TRANSFER_STATE_IDLE);
 }
 

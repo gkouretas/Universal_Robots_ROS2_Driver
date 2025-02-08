@@ -38,6 +38,9 @@
 
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
+#include <tf2/LinearMath/Transform.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Vector3.h>
 #include <realtime_tools/realtime_buffer.h>
 #include <realtime_tools/realtime_server_goal_handle.h>
 
@@ -60,12 +63,14 @@
 #include <rclcpp/clock.hpp>
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/pose.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <std_srvs/srv/trigger.hpp>
 #include <ur_msgs/srv/set_force_mode.hpp>
 #include <ur_msgs/action/dynamic_force_mode_path.hpp>
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
 #include <control_msgs/action/follow_joint_trajectory.hpp>
+#include <builtin_interfaces/msg/time.hpp>
 
 #include "dynamic_path_force_mode_controller_parameters.hpp"
 
@@ -131,6 +136,24 @@ struct DynamicForceModeParameters
   double gain_scaling;
 };
 
+// HACK(george): should use a msg type for this...
+struct ForceModeRequest
+{
+  geometry_msgs::msg::PoseStamped task_frame;
+  bool selection_vector_x = false;
+  bool selection_vector_y = false;
+  bool selection_vector_z = false;
+  bool selection_vector_rx = false;
+  bool selection_vector_ry = false;
+  bool selection_vector_rz = false;
+  uint8_t type = 2;
+  geometry_msgs::msg::Wrench wrench;
+  geometry_msgs::msg::Twist speed_limits;
+  std::array<float, 6> deviation_limits = { 0.01, 0.01, 0.01, 0.01, 0.01, 0.01 };
+  float damping_factor = 0.025;
+  float gain_scaling = 0.5;
+};
+
 // TODO(george): inherit from `force_mode_controller.cpp`???
 // for now, just making independent...
 class DynamicPathForceModeController : public controller_interface::ControllerInterface
@@ -153,7 +176,8 @@ public:
   CallbackReturn on_cleanup(const rclcpp_lifecycle::State& previous_state) override;
 
 private:
-  bool setForceMode(const DynamicForceModeParameters& req);
+  double time_from_start(const builtin_interfaces::msg::Time& time) const;
+  bool setForceMode(const ForceModeRequest* req);
   bool disableForceMode(void);
   rclcpp::Service<ur_msgs::srv::SetForceMode>::SharedPtr set_force_mode_srv_;
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr disable_force_mode_srv_;
@@ -168,6 +192,10 @@ private:
   std::atomic<bool> force_mode_active_;
   std::atomic<bool> change_requested_;
   std::atomic<double> async_state_;
+
+  tf2::Transform pose_desired_;
+  tf2::Transform pose_actual_;
+  geometry_msgs::msg::Twist pose_error_;
 
   static constexpr double ASYNC_WAITING = 2.0;
   /**
@@ -187,7 +215,9 @@ private:
   rclcpp::Duration action_monitor_period_ = rclcpp::Duration(50ms);
 
   void initialize_force_mode();
-  void update_trajectory_points();
+  void update_trajectory_points(std::shared_ptr<RealtimeGoalHandle> active_goal);
+  void update_pose_actual_desired(std::shared_ptr<RealtimeGoalHandle> active_goal);
+  tf2::Transform interpolate_poses(geometry_msgs::msg::Pose& t1, geometry_msgs::msg::Pose& t2, double factor);
 
   void end_goal();
   std::shared_ptr<dynamic_path_force_mode_controller::ParamListener> dynamic_force_mode_listener_;
@@ -208,6 +238,7 @@ private:
 
   nav_msgs::msg::Path active_path_;
   std::atomic<size_t> current_index_;
+  std::atomic<double> initial_time_;
   std::atomic<bool> path_active_;
   rclcpp::Duration active_path_elapsed_time_ = rclcpp::Duration::from_nanoseconds(0);
   rclcpp::Duration max_path_trajectory_time_ = rclcpp::Duration::from_nanoseconds(0);
