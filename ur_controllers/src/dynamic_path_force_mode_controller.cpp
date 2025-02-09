@@ -260,32 +260,33 @@ void DynamicPathForceModeController::update_pose_actual_desired(std::shared_ptr<
   pose_actual_.setRotation(
       tf2::Quaternion(_tf.pose.orientation.x, _tf.pose.orientation.y, _tf.pose.orientation.z, _tf.pose.orientation.w));
 
-  size_t _index = current_index_;
-  double _t0, _t1;
-  bool _found = false;
-
-  kp * (_current_duration - t0(?)) + ...
-  const double _current_duration = duration_to_double(active_path_elapsed_time_);
-
-  while (_index < active_path_.poses.size() - 1) {
-    _t0 = time_from_start(active_path_.poses[_index].header.stamp);
-    _t1 = time_from_start(active_path_.poses[_index + 1].header.stamp);
-    if (_current_duration >= _t0 && _current_duration <= _t1) {
-      pose_desired_ = interpolate_poses(active_path_.poses[_index].pose, active_path_.poses[_index + 1].pose,
-                                        std::clamp(((_current_duration - _t0) / (_t1 - _t0)), 0.0, 1.0));
-      _found = true;
-      break;
-    }
-    _index++;
-  }
-
-  if (!_found) {
+  if (!find_pose_desired()) {
     // Set the desired pose to the final pose if we are unable to interpolate
     _tf = active_path_.poses.back();
     pose_desired_.setOrigin(tf2::Vector3(_tf.pose.position.x, _tf.pose.position.y, _tf.pose.position.z));
     pose_desired_.setRotation(tf2::Quaternion(_tf.pose.orientation.x, _tf.pose.orientation.y, _tf.pose.orientation.z,
                                               _tf.pose.orientation.w));
   }
+}
+
+bool DynamicPathForceModeController::find_pose_desired()
+{
+    double _t0, _t1;
+    size_t _index = current_index_;
+    const double _current_duration = duration_to_double(active_path_elapsed_time_);
+
+    while (_index < active_path_.poses.size() - 1) {
+        _t0 = time_from_start(active_path_.poses[_index].header.stamp);
+        _t1 = time_from_start(active_path_.poses[_index + 1].header.stamp);
+        if (_current_duration >= _t0 && _current_duration <= _t1) {
+            pose_desired_ = interpolate_poses(active_path_.poses[_index].pose, active_path_.poses[_index + 1].pose,
+                                                std::clamp(((_current_duration - _t0) / (_t1 - _t0)), 0.0, 1.0));
+            return true;
+        }
+        _index++;
+    }
+
+    return false;
 }
 
 tf2::Transform DynamicPathForceModeController::interpolate_poses(geometry_msgs::msg::Pose& t1,
@@ -325,6 +326,7 @@ void DynamicPathForceModeController::update_trajectory_points(std::shared_ptr<Re
   }
 
   // Update speed scaling factor
+  // TODO(george): use the speed scaling factor?
   if (scaling_state_interface_.has_value()) {
     scaling_factor_ = scaling_state_interface_->get().get_value();
   }
@@ -333,17 +335,62 @@ void DynamicPathForceModeController::update_trajectory_points(std::shared_ptr<Re
   if (current_index_ == 0 && current_transfer_state == TRANSFER_STATE_IDLE) {
     active_path_elapsed_time_ = rclcpp::Duration(0, 0);
     max_path_trajectory_time_ = rclcpp::Duration::from_seconds(time_from_start(active_path_.poses.back().header.stamp));
-    transfer_command_interface_->get().set_value(TRANSFER_STATE_WAITING_FOR_POINT);
+    transfer_command_interface_->get().set_value(TRANSFER_WAITING_FOR_POINT);
   }
 
-  if (current_transfer_state == TRANSFER_STATE_WAITING_FOR_POINT) {
+  if (current_transfer_state == TRANSFER_WAITING_FOR_POINT) {
     if (current_index_ < active_path_.poses.size()) {
       time_from_start_command_interface_->get().set_value(
           time_from_start(active_path_.poses[current_index_].header.stamp));
 
-      update_pose_actual_desired(active_goal);
+      //compute_task_frame();
+
+      // TODO(george): this should get pre-computed
+      if (current_index_ == active_path_.poses.size()-1)
+      {
+        compute_compliance_vector(active_path_.poses[current_index_-1].pose,
+                                  active_path_.poses[current_index_].pose);
+      }
+      else
+      {
+        compute_compliance_vector(active_path_.poses[current_index_].pose,
+                                  active_path_.poses[current_index_+1].pose);
+      }
+
+      //update_pose_actual_desired(active_goal);
+      current_index_++;
+      transfer_command_interface_->get().set_value(TRANSFER_STATE_IN_MOTION);
+    } else if (current_index_ == active_path_.poses.size()) {
+        transfer_command_interface_->get().set_value(TRANSFER_STATE_DONE);
+    } else {
+        RCLCPP_ERROR(get_node()->get_logger(), "Hardware waiting for trajectory point while none is present!");
     }
   }
+
+  if (current_transfer_state == TRANSFER_STATE_IN_MOTION)
+  {
+    if (current_index_ < active_path_.poses.size()) {
+      // Get current pose
+      // TODO(george): I don't think this gives the TCP pose...
+      auto task_frame_transformed = tf_buffer_->transform(active_goal->gh_->get_goal()->task_frame, params_.tf_prefix + "base");
+      auto target_frame = active_path_.poses[current_index_];
+
+      tf2::Transform t_diff = compute_relative_transform(task_frame_transformed.pose, target_frame.pose);
+      if (check_pose_tolerance(t_diff))
+      {
+        // Reached target within threshold
+        RCLCPP_INFO(get_node()->get_logger(), "Reached waypoint index %lu", current_index_.load());
+        transfer_command_interface_->get().set_value(TRANSFER_WAITING_FOR_POINT);
+      }
+    } else {
+      RCLCPP_ERROR(get_node()->get_logger(), "No pose to query");
+    }
+  }
+}
+
+bool DynamicPathForceModeController::check_pose_tolerance(tf2::Transform &t)
+{
+  return t.getOrigin().length() < 1e-3;
 }
 
 controller_interface::return_type
@@ -373,6 +420,57 @@ ur_controllers::DynamicPathForceModeController::update(const rclcpp::Time& /*tim
   }
 
   return controller_interface::return_type::OK;
+}
+
+tf2::Transform DynamicPathForceModeController::compute_relative_transform(geometry_msgs::msg::Pose& t1,
+                                                                           geometry_msgs::msg::Pose& t2)
+{
+  tf2::Transform tf2_t1, tf2_t2;
+
+  tf2_t1.setOrigin(tf2::Vector3(t1.position.x, t1.position.y, t1.position.z));
+  tf2_t1.setRotation(tf2::Quaternion(t1.orientation.x, t1.orientation.y, t1.orientation.z, t1.orientation.w));
+
+  tf2_t2.setOrigin(tf2::Vector3(t2.position.x, t2.position.y, t2.position.z));
+  tf2_t2.setRotation(tf2::Quaternion(t2.orientation.x, t2.orientation.y, t2.orientation.z, t2.orientation.w));
+
+  return compute_relative_transform(tf2_t1, tf2_t2);
+}
+
+tf2::Transform DynamicPathForceModeController::compute_relative_transform(tf2::Transform& t1,
+                                                                           tf2::Transform& t2)
+{
+  return t1.inverse() * t2;
+}
+
+void DynamicPathForceModeController::compute_compliance_vector(geometry_msgs::msg::Pose& t1,
+                                                               geometry_msgs::msg::Pose& t2)
+{
+  static constexpr double POSITION_THRESH = 1e-3;
+  // TEMP(george): let's always keep the orientation active and just see what happens...
+  static constexpr double ORIENTATION_THRESH = 0; 
+  tf2::Transform tf_out = compute_relative_transform(t1, t2);
+
+  // Get the roll, pitch, and yaw 
+  std::array<double, 3> rpy;
+  tf2::Matrix3x3(tf_out.getRotation()).getRPY(rpy[0], rpy[1], rpy[2]);
+
+  RCLCPP_INFO(get_node()->get_logger(), "Relative transformation: (%3.3f, %3.3f, %3.3f)m, (%3.3f, %3.3f, %3.3f)rad", 
+              tf_out.getOrigin().getX(), tf_out.getOrigin().getY(), tf_out.getOrigin().getZ(), rpy[0], rpy[1], rpy[2]);
+
+  // Set the compliance vector to be active if the position/orientation are greater than
+  // the configured threshold
+  command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_X].set_value(
+      (std::fabs(tf_out.getOrigin().getX()) > POSITION_THRESH) ? 1.0 : 0.0);
+  command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_Y].set_value(
+      (std::fabs(tf_out.getOrigin().getY()) > POSITION_THRESH) ? 1.0 : 0.0);
+  command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_Z].set_value(
+      (std::fabs(tf_out.getOrigin().getZ()) > POSITION_THRESH) ? 1.0 : 0.0);
+  command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_RX].set_value(
+      (std::fabs(rpy[0]) > ORIENTATION_THRESH) ? 1.0 : 0.0);
+  command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_RY].set_value(
+      (std::fabs(rpy[1]) > ORIENTATION_THRESH) ? 1.0 : 0.0);
+  command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_RZ].set_value(
+      (std::fabs(rpy[2]) > ORIENTATION_THRESH) ? 1.0 : 0.0);
 }
 
 bool DynamicPathForceModeController::waitForAsyncCommand(std::function<double(void)> get_value)

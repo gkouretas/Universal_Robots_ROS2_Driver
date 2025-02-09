@@ -77,11 +77,9 @@
 namespace ur_controllers
 {
 const double TRANSFER_STATE_IDLE = 0.0;
-const double TRANSFER_STATE_WAITING_FOR_POINT = 1.0;
-const double TRANSFER_STATE_TRANSFERRING = 2.0;
-const double TRANSFER_STATE_TRANSFER_DONE = 3.0;
-const double TRANSFER_STATE_IN_MOTION = 4.0;
-const double TRANSFER_STATE_DONE = 5.0;
+const double TRANSFER_WAITING_FOR_POINT = 1.0;
+const double TRANSFER_STATE_IN_MOTION = 2.0;
+const double TRANSFER_STATE_DONE = 3.0;
 
 using namespace std::chrono_literals;  // NOLINT
 
@@ -217,7 +215,12 @@ private:
   void initialize_force_mode();
   void update_trajectory_points(std::shared_ptr<RealtimeGoalHandle> active_goal);
   void update_pose_actual_desired(std::shared_ptr<RealtimeGoalHandle> active_goal);
+  bool find_pose_desired(void);
   tf2::Transform interpolate_poses(geometry_msgs::msg::Pose& t1, geometry_msgs::msg::Pose& t2, double factor);
+  bool check_pose_tolerance(tf2::Transform &t);
+  void compute_compliance_vector(geometry_msgs::msg::Pose& t1, geometry_msgs::msg::Pose& t2);
+  tf2::Transform compute_relative_transform(geometry_msgs::msg::Pose& t1, geometry_msgs::msg::Pose& t2);
+  tf2::Transform compute_relative_transform(tf2::Transform& t1, tf2::Transform& t2);
 
   void end_goal();
   std::shared_ptr<dynamic_path_force_mode_controller::ParamListener> dynamic_force_mode_listener_;
