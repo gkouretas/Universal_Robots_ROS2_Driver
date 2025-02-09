@@ -376,7 +376,7 @@ void DynamicPathForceModeController::update_trajectory_points(std::shared_ptr<Re
       auto target_frame = active_path_.poses[current_index_];
 
       tf2::Transform t_diff = compute_relative_transform(task_frame_transformed.pose, target_frame.pose);
-      if (check_pose_tolerance(t_diff))
+      if (check_pose_tolerance(t_diff, active_goal->gh_->get_goal()->waypoint_tolerances))
       {
         // Reached target within threshold
         RCLCPP_INFO(get_node()->get_logger(), "Reached waypoint index %lu", current_index_.load());
@@ -388,9 +388,12 @@ void DynamicPathForceModeController::update_trajectory_points(std::shared_ptr<Re
   }
 }
 
-bool DynamicPathForceModeController::check_pose_tolerance(tf2::Transform &t)
+bool DynamicPathForceModeController::check_pose_tolerance(tf2::Transform &tf, std::array<float, 6> tolerances)
 {
-  return t.getOrigin().length() < 1e-3;
+  auto t = tf.getOrigin();
+  return std::fabs(t.getX()) < tolerances[0] &&
+         std::fabs(t.getY()) < tolerances[1] &&
+         std::fabs(t.getZ()) < tolerances[2];
 }
 
 controller_interface::return_type
@@ -423,7 +426,7 @@ ur_controllers::DynamicPathForceModeController::update(const rclcpp::Time& /*tim
 }
 
 tf2::Transform DynamicPathForceModeController::compute_relative_transform(geometry_msgs::msg::Pose& t1,
-                                                                           geometry_msgs::msg::Pose& t2)
+                                                                          geometry_msgs::msg::Pose& t2)
 {
   tf2::Transform tf2_t1, tf2_t2;
 
