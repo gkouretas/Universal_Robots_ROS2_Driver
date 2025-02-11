@@ -343,7 +343,7 @@ void DynamicPathForceModeController::update_trajectory_points(std::shared_ptr<Re
       time_from_start_command_interface_->get().set_value(
           time_from_start(active_path_.poses[current_index_].header.stamp));
 
-      //compute_task_frame();
+      compute_task_frame(active_path_.poses[current_index_].pose);
 
       // TODO(george): this should get pre-computed
       if (current_index_ == active_path_.poses.size()-1)
@@ -442,6 +442,22 @@ tf2::Transform DynamicPathForceModeController::compute_relative_transform(tf2::T
                                                                            tf2::Transform& t2)
 {
   return t1.inverse() * t2;
+}
+
+void DynamicPathForceModeController::compute_task_frame(geometry_msgs::msg::Pose& pose)
+{
+  command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_TASK_FRAME_X].set_value(pose.position.x);
+  command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_TASK_FRAME_Y].set_value(pose.position.x);
+  command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_TASK_FRAME_Z].set_value(pose.position.x);
+
+  tf2::Quaternion quat_tf;
+  tf2::convert(pose.orientation, quat_tf);
+  std::array<double, 3> rpy;
+  tf2::Matrix3x3(quat_tf).getRPY(rpy[0], rpy[1], rpy[2]);
+
+  command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_TASK_FRAME_RX].set_value(rpy[0]);
+  command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_TASK_FRAME_RY].set_value(rpy[1]);
+  command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_TASK_FRAME_RZ].set_value(rpy[2]);
 }
 
 void DynamicPathForceModeController::compute_compliance_vector(geometry_msgs::msg::Pose& t1,

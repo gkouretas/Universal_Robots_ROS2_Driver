@@ -218,6 +218,7 @@ private:
   bool find_pose_desired(void);
   tf2::Transform interpolate_poses(geometry_msgs::msg::Pose& t1, geometry_msgs::msg::Pose& t2, double factor);
   bool check_pose_tolerance(tf2::Transform &tf, std::array<float, 6> tolerances);
+  void compute_task_frame(geometry_msgs::msg::Pose& pose);
   void compute_compliance_vector(geometry_msgs::msg::Pose& t1, geometry_msgs::msg::Pose& t2);
   tf2::Transform compute_relative_transform(geometry_msgs::msg::Pose& t1, geometry_msgs::msg::Pose& t2);
   tf2::Transform compute_relative_transform(tf2::Transform& t1, tf2::Transform& t2);
