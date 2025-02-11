@@ -371,7 +371,6 @@ void DynamicPathForceModeController::update_trajectory_points(std::shared_ptr<Re
   {
     if (current_index_ < active_path_.poses.size()) {
       // Get current pose
-      // TODO(george): I don't think this gives the TCP pose...
       auto task_frame_transformed = tf_buffer_->transform(active_goal->gh_->get_goal()->task_frame, params_.tf_prefix + "base");
       auto target_frame = active_path_.poses[current_index_];
 
