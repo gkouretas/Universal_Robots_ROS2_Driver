@@ -280,7 +280,7 @@ protected:
   double dynamic_force_mode_damping_;
   double dynamic_force_mode_gain_scaling_;
 
-  bool dynamic_force_mode_controller_running_;
+  bool dynamic_path_force_mode_controller_running_;
 
   // dynamic gains
   double dynamic_force_mode_params_srv_damping_;

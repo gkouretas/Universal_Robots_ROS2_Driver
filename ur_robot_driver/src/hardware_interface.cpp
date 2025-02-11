@@ -859,7 +859,7 @@ hardware_interface::return_type URPositionHardwareInterface::write(const rclcpp:
     } else if (freedrive_mode_controller_running_ && freedrive_activated_) {
       ur_driver_->writeFreedriveControlMessage(urcl::control::FreedriveControlMessage::FREEDRIVE_NOOP);
 
-    } else if (dynamic_force_mode_controller_running_) {
+    } else if (dynamic_path_force_mode_controller_running_) {
       // TODO(george): NaN checks???
       ur_driver_->writeDynamicForceModeMessage(
           dynamic_force_mode_task_frame_,
@@ -1125,7 +1125,7 @@ hardware_interface::return_type URPositionHardwareInterface::prepare_command_mod
     if (freedrive_mode_controller_running_) {
       control_modes[i].push_back(FREEDRIVE_MODE_GPIO);
     }
-    if (dynamic_force_mode_controller_running_) {
+    if (dynamic_path_force_mode_controller_running_) {
       control_modes[i].push_back(DYNAMIC_FORCE_MODE_GPIO);
     }
   }
@@ -1385,7 +1385,7 @@ hardware_interface::return_type URPositionHardwareInterface::perform_command_mod
   } else if (stop_modes_[0].size() != 0 &&
              std::find(stop_modes_[0].begin(), stop_modes_[0].end(), StoppingInterface::STOP_DYNAMIC_FORCE_MODE) !=
                  stop_modes_[0].end()) {
-    dynamic_force_mode_controller_running_ = false;
+    dynamic_path_force_mode_controller_running_ = false;
     stop_force_mode(DYNAMIC_FORCE_MODE_GPIO);
   }
 
@@ -1423,7 +1423,7 @@ hardware_interface::return_type URPositionHardwareInterface::perform_command_mod
     dynamic_force_mode_task_frame_ = { { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 } };
     dynamic_force_mode_selection_vector_ = { { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 } };
     dynamic_force_mode_wrench_ = { { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 } };
-    dynamic_force_mode_controller_running_ = true;
+    dynamic_path_force_mode_controller_running_ = true;
   }
 
   start_modes_.clear();

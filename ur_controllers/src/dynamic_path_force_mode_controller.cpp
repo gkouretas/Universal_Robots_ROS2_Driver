@@ -146,6 +146,7 @@ ur_controllers::DynamicPathForceModeController::on_configure(const rclcpp_lifecy
 
   // Create the service server that will be used to start force mode
   try {
+    RCLCPP_INFO(get_node()->get_logger(), (std::string(get_node()->get_name()) + "/dynamic_force_mode_path").c_str());
     dynamic_force_mode_action_server_ = rclcpp_action::create_server<DynamicForceModeAction>(
         get_node(), std::string(get_node()->get_name()) + "/dynamic_force_mode_path",
         std::bind(&DynamicPathForceModeController::goal_received_callback, this, std::placeholders::_1,

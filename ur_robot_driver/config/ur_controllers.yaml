@@ -39,6 +39,9 @@ controller_manager:
     passthrough_trajectory_controller:
       type: ur_controllers/PassthroughTrajectoryController
 
+    dynamic_path_force_mode_controller:
+      type: ur_controllers/DynamicPathForceModeController
+
     ur_configuration_controller:
       type: ur_controllers/URConfigurationController
 
