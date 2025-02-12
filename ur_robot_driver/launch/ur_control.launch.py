@@ -605,7 +605,7 @@ def generate_launch_description():
                 "force_mode_controller",
                 "freedrive_mode_controller",
                 "passthrough_trajectory_controller",
-                "dynamic_path_force_mode_controller"
+                "dynamic_path_force_mode_controller",
             ],
             description="Initially loaded robot controller.",
         )

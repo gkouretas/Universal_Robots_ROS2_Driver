@@ -322,6 +322,8 @@ std::vector<hardware_interface::CommandInterface> URPositionHardwareInterface::e
       hardware_interface::CommandInterface(tf_prefix + "payload", "payload_async_success", &payload_async_success_));
 
   for (auto& io_string : { FORCE_MODE_GPIO, DYNAMIC_FORCE_MODE_GPIO }) {
+    RCLCPP_INFO(rclcpp::get_logger("URPositionHardwareInterface"),
+                (io_string + ": " + (io_string == FORCE_MODE_GPIO ? "true" : "false")).c_str());
     command_interfaces.emplace_back(
         hardware_interface::CommandInterface(tf_prefix + io_string, "task_frame_x",
                                              DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_task_frame_[0])));
@@ -1187,6 +1189,18 @@ hardware_interface::return_type URPositionHardwareInterface::prepare_command_mod
           return hardware_interface::return_type::ERROR;
         }
         start_modes_[i].push_back(FREEDRIVE_MODE_GPIO);
+      } else if (key == tf_prefix + DYNAMIC_FORCE_MODE_GPIO + "/type") {
+        if (std::any_of(start_modes_[i].begin(), start_modes_[i].end(), [&](const std::string& item) {
+              return item == hardware_interface::HW_IF_POSITION || item == hardware_interface::HW_IF_VELOCITY;
+            })) {
+          RCLCPP_ERROR(rclcpp::get_logger("URPositionHardwareInterface"), "Attempting to start dynamic force mode "
+                                                                          "control "
+                                                                          "while there is either position or "
+                                                                          "velocity mode already requested by another "
+                                                                          "controller.");
+          return hardware_interface::return_type::ERROR;
+        }
+        start_modes_[i].push_back(DYNAMIC_FORCE_MODE_GPIO);
       }
     }
   }
@@ -1420,6 +1434,7 @@ hardware_interface::return_type URPositionHardwareInterface::perform_command_mod
   } else if (start_modes_[0].size() != 0 && std::find(start_modes_[0].begin(), start_modes_[0].end(),
                                                       DYNAMIC_FORCE_MODE_GPIO) != start_modes_[0].end()) {
     // TODO(george): set other control modes to false?
+    RCLCPP_INFO(rclcpp::get_logger("URPositionHardwareInterface"), "Start mode for dynamic force mode");
     dynamic_force_mode_task_frame_ = { { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 } };
     dynamic_force_mode_selection_vector_ = { { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 } };
     dynamic_force_mode_wrench_ = { { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 } };
@@ -1435,6 +1450,9 @@ hardware_interface::return_type URPositionHardwareInterface::perform_command_mod
 void URPositionHardwareInterface::start_force_mode(const std::string& force_mode_gpio)
 {
   urcl::vector6uint32_t force_mode_selection_vector_copy;
+
+  RCLCPP_INFO(rclcpp::get_logger("URPositionHardwareInterface"),
+              (force_mode_gpio + ": " + (force_mode_gpio == FORCE_MODE_GPIO ? "true" : "false")).c_str());
 
   for (size_t i = 0; i < force_mode_selection_vector_copy.size(); i++) {
     force_mode_selection_vector_copy[i] =
