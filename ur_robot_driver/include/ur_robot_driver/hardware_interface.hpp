@@ -280,6 +280,10 @@ protected:
   double dynamic_force_mode_damping_;
   double dynamic_force_mode_gain_scaling_;
 
+  double dynamic_force_mode_abort_;
+  double dynamic_force_mode_transfer_state_;
+  double dynamic_force_mode_time_from_start_;
+
   bool dynamic_path_force_mode_controller_running_;
 
   // dynamic gains

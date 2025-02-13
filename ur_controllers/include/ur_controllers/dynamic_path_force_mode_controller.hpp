@@ -114,6 +114,9 @@ enum CommandInterfaces
   DYNAMIC_FORCE_MODE_DISABLE_CMD = 26,
   DYNAMIC_FORCE_MODE_DAMPING = 27,
   DYNAMIC_FORCE_MODE_GAIN_SCALING = 28,
+  DYNAMIC_FORCE_MODE_ABORT = 29,
+  DYNAMIC_FORCE_MODE_TRANSFER_STATE = 30,
+  DYNAMIC_FORCE_MODE_TIME_FROM_START = 31,
 };
 enum StateInterfaces
 {
@@ -249,7 +252,7 @@ private:
   double scaling_factor_;
   static constexpr double NO_VAL = std::numeric_limits<double>::quiet_NaN();
 
-  std::optional<std::reference_wrapper<hardware_interface::LoanedStateInterface>> scaling_state_interface_;
+  //std::optional<std::reference_wrapper<hardware_interface::LoanedStateInterface>> scaling_state_interface_;
   std::optional<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> abort_command_interface_;
   std::optional<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> transfer_command_interface_;
   std::optional<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> time_from_start_command_interface_;

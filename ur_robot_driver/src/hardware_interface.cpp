@@ -398,6 +398,13 @@ std::vector<hardware_interface::CommandInterface> URPositionHardwareInterface::e
                                              DYNAMIC_OR_STANDARD_FORCE_MODE_VAR(io_string, force_mode_gain_scaling_)));
   }
 
+  command_interfaces.emplace_back(
+        hardware_interface::CommandInterface(tf_prefix + DYNAMIC_FORCE_MODE_GPIO, "abort", &dynamic_force_mode_abort_));
+  command_interfaces.emplace_back(
+        hardware_interface::CommandInterface(tf_prefix + DYNAMIC_FORCE_MODE_GPIO, "transfer_state", &dynamic_force_mode_transfer_state_));
+  command_interfaces.emplace_back(
+        hardware_interface::CommandInterface(tf_prefix + DYNAMIC_FORCE_MODE_GPIO, "time_from_start", &dynamic_force_mode_time_from_start_));
+
   for (size_t i = 0; i < 18; ++i) {
     command_interfaces.emplace_back(hardware_interface::CommandInterface(
         tf_prefix + "gpio", "standard_digital_output_cmd_" + std::to_string(i), &standard_dig_out_bits_cmd_[i]));

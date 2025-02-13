@@ -317,6 +317,9 @@
         <command_interface name="gain_scaling"/>
         <command_interface name="disable_cmd"/>
         <command_interface name="force_mode_async_success"/>
+        <command_interface name="transfer_state"/>
+        <command_interface name="time_from_start"/>
+        <command_interface name="abort"/>
       </gpio>
 
       <gpio name="${tf_prefix}trajectory_passthrough">
