@@ -476,12 +476,23 @@ void DynamicPathForceModeController::update_trajectory_points(std::shared_ptr<Re
       tf2::doTransform(pose, transformed_pose, task_frame_transformed);
 
       tf2::Transform t_diff = compute_relative_transform(transformed_pose.pose, target_frame.pose);
+
       if (check_pose_tolerance(t_diff, active_goal->gh_->get_goal()->waypoint_tolerances))
       {
         // Reached target within threshold
         RCLCPP_INFO(get_node()->get_logger(), "Reached waypoint index %lu", current_index_.load());
         transfer_command_interface_->get().set_value(TRANSFER_WAITING_FOR_POINT);
       }
+
+      auto feedback = std::make_shared<DynamicForceModeAction::Feedback>();
+      
+      feedback->pose_error.position.x = t_diff.getOrigin().getX();
+      feedback->pose_error.position.y = t_diff.getOrigin().getY();
+      feedback->pose_error.position.z = t_diff.getOrigin().getZ();
+
+      //RCLCPP_INFO(get_node()->get_logger(), "Err: %.3f %.3f %.3f", feedback->pose_error.position.x, feedback->pose_error.position.y, feedback->pose_error.position.z);
+
+      active_goal->gh_->publish_feedback(feedback);
     } else {
       RCLCPP_ERROR(get_node()->get_logger(), "No pose to query");
     }
@@ -561,6 +572,9 @@ void DynamicPathForceModeController::compute_task_frame(geometry_msgs::msg::Pose
   command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_TASK_FRAME_RX].set_value(rpy[0]);
   command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_TASK_FRAME_RY].set_value(rpy[1]);
   command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_TASK_FRAME_RZ].set_value(rpy[2]);
+
+  RCLCPP_INFO(get_node()->get_logger(), "Updating pose: %.4f %.4f %.4f %.4f %.4f %.4f", pose.position.x, pose.position.y, pose.position.z,
+  rpy[0], rpy[1], rpy[2]);
 }
 
 void DynamicPathForceModeController::compute_compliance_vector(geometry_msgs::msg::Pose& t1,
@@ -568,7 +582,7 @@ void DynamicPathForceModeController::compute_compliance_vector(geometry_msgs::ms
 {
   static constexpr double POSITION_THRESH = 1e-4;
   // TEMP(george): let's always keep the orientation active and just see what happens...
-  static constexpr double ORIENTATION_THRESH = 0.0;
+  static constexpr double ORIENTATION_THRESH = 10000.0;
 
   RCLCPP_INFO(get_node()->get_logger(), "T1: %.4f %.4f %.4f, %.4f %.4f %.4f %.4f", t1.position.x, t1.position.y, t1.position.z, t1.orientation.w, t1.orientation.x, t1.orientation.y, t1.orientation.z);
   RCLCPP_INFO(get_node()->get_logger(), "T2: %.4f %.4f %.4f, %.4f %.4f %.4f %.4f", t2.position.x, t2.position.y, t2.position.z, t2.orientation.w, t2.orientation.x, t2.orientation.y, t2.orientation.z);
