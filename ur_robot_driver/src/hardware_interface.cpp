@@ -1300,11 +1300,14 @@ hardware_interface::return_type URPositionHardwareInterface::prepare_command_mod
       (std::any_of(start_modes_[0].begin(), start_modes_[0].end(),
                    [this](auto& item) {
                      return (item == hardware_interface::HW_IF_VELOCITY || item == hardware_interface::HW_IF_POSITION ||
-                             item == PASSTHROUGH_GPIO || item == FORCE_MODE_GPIO || item == DYNAMIC_FORCE_MODE_GPIO);
+                            //  item == PASSTHROUGH_GPIO || item == FORCE_MODE_GPIO || item == DYNAMIC_FORCE_MODE_GPIO);
+                             item == PASSTHROUGH_GPIO || item == FORCE_MODE_GPIO); // TODO(george): why does this get tripped???
                    }) ||
        std::any_of(control_modes[0].begin(), control_modes[0].end(), [this](auto& item) {
          return (item == hardware_interface::HW_IF_VELOCITY || item == hardware_interface::HW_IF_POSITION ||
-                 item == PASSTHROUGH_GPIO || item == FORCE_MODE_GPIO || item == DYNAMIC_FORCE_MODE_GPIO);
+                //  item == PASSTHROUGH_GPIO || item == FORCE_MODE_GPIO || item == DYNAMIC_FORCE_MODE_GPIO);
+                 item == PASSTHROUGH_GPIO || item == FORCE_MODE_GPIO);
+
        }))) {
     RCLCPP_ERROR(rclcpp::get_logger("URPosistionHardwareInterface"), "Attempting to start freedrive mode control while "
                                                                      "there is either position, passthrough "
@@ -1432,12 +1435,6 @@ hardware_interface::return_type URPositionHardwareInterface::perform_command_mod
     position_controller_running_ = false;
     passthrough_trajectory_controller_running_ = true;
     passthrough_trajectory_abort_ = 0.0;
-  } else if (start_modes_[0].size() != 0 &&
-             std::find(start_modes_[0].begin(), start_modes_[0].end(), FREEDRIVE_MODE_GPIO) != start_modes_[0].end()) {
-    velocity_controller_running_ = false;
-    position_controller_running_ = false;
-    freedrive_mode_controller_running_ = true;
-    freedrive_activated_ = false;
   } else if (start_modes_[0].size() != 0 && std::find(start_modes_[0].begin(), start_modes_[0].end(),
                                                       DYNAMIC_FORCE_MODE_GPIO) != start_modes_[0].end()) {
     // TODO(george): set other control modes to false?
@@ -1446,6 +1443,13 @@ hardware_interface::return_type URPositionHardwareInterface::perform_command_mod
     dynamic_force_mode_selection_vector_ = { { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 } };
     dynamic_force_mode_wrench_ = { { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 } };
     dynamic_path_force_mode_controller_running_ = true;
+  } else if (start_modes_[0].size() != 0 &&
+             std::find(start_modes_[0].begin(), start_modes_[0].end(), FREEDRIVE_MODE_GPIO) != start_modes_[0].end()) {
+    velocity_controller_running_ = false;
+    position_controller_running_ = false;
+    dynamic_path_force_mode_controller_running_ = false;
+    freedrive_mode_controller_running_ = true;
+    freedrive_activated_ = false;
   }
 
   start_modes_.clear();

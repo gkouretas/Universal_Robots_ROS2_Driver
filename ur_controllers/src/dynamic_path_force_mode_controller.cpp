@@ -147,6 +147,9 @@ ur_controllers::DynamicPathForceModeController::on_configure(const rclcpp_lifecy
 
   tf_buffer_ = std::make_unique<tf2_ros::Buffer>(get_node()->get_clock());
   tf_listener_ = std::make_unique<tf2_ros::TransformListener>(*tf_buffer_);
+  tcp_listener_ = get_node()->create_subscription<geometry_msgs::msg::PoseStamped>(
+    "tcp_pose_broadcaster/pose", 10,
+    std::bind(&DynamicPathForceModeController::pose_cmd_callback, this, std::placeholders::_1));
 
   // Create the service server that will be used to start force mode
   try {
@@ -163,6 +166,13 @@ ur_controllers::DynamicPathForceModeController::on_configure(const rclcpp_lifecy
   }
 
   return ControllerInterface::on_configure(previous_state);
+}
+
+void DynamicPathForceModeController::pose_cmd_callback(const std::shared_ptr<geometry_msgs::msg::PoseStamped> msg)
+{
+  tcp_mutex_.lock();
+  tcp_pose_ = *msg;
+  tcp_mutex_.unlock();
 }
 
 controller_interface::CallbackReturn
@@ -429,16 +439,17 @@ void DynamicPathForceModeController::update_trajectory_points(std::shared_ptr<Re
       if (current_index_ == active_path_.poses.size()-1)
       {
         compute_compliance_vector(active_path_.poses[current_index_-1].pose,
-                                  active_path_.poses[current_index_].pose);
+                                  active_path_.poses[current_index_].pose,
+                                  active_goal->gh_->get_goal()->compliance_tolerances);
       }
       else
       {
         compute_compliance_vector(active_path_.poses[current_index_].pose,
-                                  active_path_.poses[current_index_+1].pose);
+                                  active_path_.poses[current_index_+1].pose,
+                                  active_goal->gh_->get_goal()->compliance_tolerances);
       }
 
       //update_pose_actual_desired(active_goal);
-      current_index_++;
       transfer_command_interface_->get().set_value(TRANSFER_STATE_IN_MOTION);
     } else if (current_index_ == active_path_.poses.size()) {
         RCLCPP_INFO(get_node()->get_logger(), "Trajectory done");
@@ -452,35 +463,39 @@ void DynamicPathForceModeController::update_trajectory_points(std::shared_ptr<Re
   {
     if (current_index_ < active_path_.poses.size()) {
       // Get current pose
-      auto task_frame_transformed = tf_buffer_->lookupTransform(params_.tf_prefix + "base", "tool0_controller", tf2::TimePointZero); 
+      tcp_mutex_.lock();
+      auto task_frame = tcp_pose_;
+      tcp_mutex_.unlock();
+      // auto task_frame_transformed = tf_buffer_->lookupTransform(params_.tf_prefix + "base", "tool0_controller", tf2::TimePointZero); 
       auto target_frame = active_path_.poses[current_index_];
 
       // HACK(george): ChatGPT generate code to get types to agree...
       // probably should just use tcp_pose_broadcaster...
       // Create a PoseStamped message
-      geometry_msgs::msg::PoseStamped pose;
-      pose.header.stamp = get_node()->get_clock()->now();
-      pose.header.frame_id = "tool0_controller";  // Pose is in the child frame initially
+      // geometry_msgs::msg::PoseStamped pose;
+      // pose.header.stamp = get_node()->get_clock()->now();
+      // pose.header.frame_id = "tool0_controller";  // Pose is in the child frame initially
 
       // Set pose to identity (default position at origin)
-      pose.pose.position.x = 0.0;
-      pose.pose.position.y = 0.0;
-      pose.pose.position.z = 0.0;
-      pose.pose.orientation.x = 0.0;
-      pose.pose.orientation.y = 0.0;
-      pose.pose.orientation.z = 0.0;
-      pose.pose.orientation.w = 1.0;  // Identity quaternion
+      // pose.pose.position.x = 0.0;
+      // pose.pose.position.y = 0.0;
+      // pose.pose.position.z = 0.0;
+      // pose.pose.orientation.x = 0.0;
+      // pose.pose.orientation.y = 0.0;
+      // pose.pose.orientation.z = 0.0;
+      // pose.pose.orientation.w = 1.0;  // Identity quaternion
 
       // Transform the pose to the parent frame
-      geometry_msgs::msg::PoseStamped transformed_pose;
-      tf2::doTransform(pose, transformed_pose, task_frame_transformed);
+      // geometry_msgs::msg::PoseStamped transformed_pose;
+      // tf2::doTransform(pose, transformed_pose, task_frame_transformed);
 
-      tf2::Transform t_diff = compute_relative_transform(transformed_pose.pose, target_frame.pose);
+      tf2::Transform t_diff = compute_relative_transform(task_frame.pose, target_frame.pose);
 
       if (check_pose_tolerance(t_diff, active_goal->gh_->get_goal()->waypoint_tolerances))
       {
         // Reached target within threshold
         RCLCPP_INFO(get_node()->get_logger(), "Reached waypoint index %lu", current_index_.load());
+        current_index_++;
         transfer_command_interface_->get().set_value(TRANSFER_WAITING_FOR_POINT);
       }
 
@@ -490,12 +505,19 @@ void DynamicPathForceModeController::update_trajectory_points(std::shared_ptr<Re
       feedback->pose_error.position.y = t_diff.getOrigin().getY();
       feedback->pose_error.position.z = t_diff.getOrigin().getZ();
 
-      //RCLCPP_INFO(get_node()->get_logger(), "Err: %.3f %.3f %.3f", feedback->pose_error.position.x, feedback->pose_error.position.y, feedback->pose_error.position.z);
+      // RCLCPP_INFO(get_node()->get_logger(), "Err: %.3f %.3f %.3f", feedback->pose_error.position.x, feedback->pose_error.position.y, feedback->pose_error.position.z);
 
       active_goal->gh_->publish_feedback(feedback);
     } else {
       RCLCPP_ERROR(get_node()->get_logger(), "No pose to query");
     }
+  }
+
+  if (current_transfer_state == TRANSFER_STATE_DONE)
+  {
+    auto result = active_goal->preallocated_result_;
+    active_goal->setSucceeded(result);
+    end_goal();
   }
 }
 
@@ -578,12 +600,9 @@ void DynamicPathForceModeController::compute_task_frame(geometry_msgs::msg::Pose
 }
 
 void DynamicPathForceModeController::compute_compliance_vector(geometry_msgs::msg::Pose& t1,
-                                                               geometry_msgs::msg::Pose& t2)
+                                                               geometry_msgs::msg::Pose& t2,
+                                                               std::array<float, 6> tolerances)
 {
-  static constexpr double POSITION_THRESH = 1e-4;
-  // TEMP(george): let's always keep the orientation active and just see what happens...
-  static constexpr double ORIENTATION_THRESH = 10000.0;
-
   RCLCPP_INFO(get_node()->get_logger(), "T1: %.4f %.4f %.4f, %.4f %.4f %.4f %.4f", t1.position.x, t1.position.y, t1.position.z, t1.orientation.w, t1.orientation.x, t1.orientation.y, t1.orientation.z);
   RCLCPP_INFO(get_node()->get_logger(), "T2: %.4f %.4f %.4f, %.4f %.4f %.4f %.4f", t2.position.x, t2.position.y, t2.position.z, t2.orientation.w, t2.orientation.x, t2.orientation.y, t2.orientation.z);
 
@@ -599,17 +618,17 @@ void DynamicPathForceModeController::compute_compliance_vector(geometry_msgs::ms
   // Set the compliance vector to be active if the position/orientation are greater than
   // the configured threshold
   command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_X].set_value(
-      (std::fabs(tf_out.getOrigin().getX()) > POSITION_THRESH) ? 1.0 : 0.0);
+      (std::fabs(tf_out.getOrigin().getX()) > tolerances[0]) ? 1.0 : 0.0);
   command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_Y].set_value(
-      (std::fabs(tf_out.getOrigin().getY()) > POSITION_THRESH) ? 1.0 : 0.0);
+      (std::fabs(tf_out.getOrigin().getY()) > tolerances[1]) ? 1.0 : 0.0);
   command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_Z].set_value(
-      (std::fabs(tf_out.getOrigin().getZ()) > POSITION_THRESH) ? 1.0 : 0.0);
+      (std::fabs(tf_out.getOrigin().getZ()) > tolerances[2]) ? 1.0 : 0.0);
   command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_RX].set_value(
-      (std::fabs(rpy[0]) > ORIENTATION_THRESH) ? 1.0 : 0.0);
+      (std::fabs(rpy[0]) > tolerances[3]) ? 1.0 : 0.0);
   command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_RY].set_value(
-      (std::fabs(rpy[1]) > ORIENTATION_THRESH) ? 1.0 : 0.0);
+      (std::fabs(rpy[1]) > tolerances[4]) ? 1.0 : 0.0);
   command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_RZ].set_value(
-      (std::fabs(rpy[2]) > ORIENTATION_THRESH) ? 1.0 : 0.0);
+      (std::fabs(rpy[2]) > tolerances[5]) ? 1.0 : 0.0);
 }
 
 bool DynamicPathForceModeController::waitForAsyncCommand(std::function<double(void)> get_value)
@@ -728,6 +747,14 @@ bool DynamicPathForceModeController::setForceMode(const ForceModeRequest* req)
 
 bool DynamicPathForceModeController::disableForceMode()
 {
+  // Set compliance axes to 0 to stop robot
+  command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_X].set_value(0.0);
+  command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_Y].set_value(0.0);
+  command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_Z].set_value(0.0);
+  command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_RX].set_value(0.0);
+  command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_RY].set_value(0.0);
+  command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_RZ].set_value(0.0);
+
   force_mode_active_ = false;
   change_requested_ = true;
 

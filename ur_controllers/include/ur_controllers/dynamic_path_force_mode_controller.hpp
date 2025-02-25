@@ -185,6 +185,10 @@ private:
 
   std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
   std::unique_ptr<tf2_ros::TransformListener> tf_listener_;
+  std::shared_ptr<rclcpp::Subscription<geometry_msgs::msg::PoseStamped>> tcp_listener_;
+  geometry_msgs::msg::PoseStamped tcp_pose_;
+  std::mutex tcp_mutex_;
+  void pose_cmd_callback(const std::shared_ptr<geometry_msgs::msg::PoseStamped> msg);
 
   std::shared_ptr<dynamic_path_force_mode_controller::ParamListener> param_listener_;
   dynamic_path_force_mode_controller::Params params_;
@@ -222,7 +226,7 @@ private:
   tf2::Transform interpolate_poses(geometry_msgs::msg::Pose& t1, geometry_msgs::msg::Pose& t2, double factor);
   bool check_pose_tolerance(tf2::Transform& tf, std::array<float, 6> tolerances);
   void compute_task_frame(geometry_msgs::msg::Pose& pose);
-  void compute_compliance_vector(geometry_msgs::msg::Pose& t1, geometry_msgs::msg::Pose& t2);
+  void compute_compliance_vector(geometry_msgs::msg::Pose& t1, geometry_msgs::msg::Pose& t2, std::array<float, 6> tolerances);
   tf2::Transform compute_relative_transform(geometry_msgs::msg::Pose& t1, geometry_msgs::msg::Pose& t2);
   tf2::Transform compute_relative_transform(tf2::Transform& t1, tf2::Transform& t2);
 
