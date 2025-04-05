@@ -148,8 +148,8 @@ ur_controllers::DynamicPathForceModeController::on_configure(const rclcpp_lifecy
   tf_buffer_ = std::make_unique<tf2_ros::Buffer>(get_node()->get_clock());
   tf_listener_ = std::make_unique<tf2_ros::TransformListener>(*tf_buffer_);
   tcp_listener_ = get_node()->create_subscription<geometry_msgs::msg::PoseStamped>(
-    "tcp_pose_broadcaster/pose", 10,
-    std::bind(&DynamicPathForceModeController::pose_cmd_callback, this, std::placeholders::_1));
+      "tcp_pose_broadcaster/pose", 10,
+      std::bind(&DynamicPathForceModeController::pose_cmd_callback, this, std::placeholders::_1));
 
   // Create the service server that will be used to start force mode
   try {
@@ -177,48 +177,40 @@ void DynamicPathForceModeController::pose_cmd_callback(const std::shared_ptr<geo
 
 controller_interface::CallbackReturn
 ur_controllers::DynamicPathForceModeController::on_activate(const rclcpp_lifecycle::State& /*previous_state*/)
-{ 
+{
   // auto it = std::find_if(state_interfaces_.begin(), state_interfaces_.end(), [&](auto& interface) {
   //   return (interface.get_name() == params_.speed_scaling_interface_name);
   // });
   // if (it != state_interfaces_.end()) {
   //   scaling_state_interface_ = *it;
   // } else {
-  //   RCLCPP_ERROR(get_node()->get_logger(), "Did not find speed scaling interface (%s) in state interfaces.", params_.speed_scaling_interface_name.c_str());
-  //   return controller_interface::CallbackReturn::ERROR;
+  //   RCLCPP_ERROR(get_node()->get_logger(), "Did not find speed scaling interface (%s) in state interfaces.",
+  //   params_.speed_scaling_interface_name.c_str()); return controller_interface::CallbackReturn::ERROR;
   // }
 
   const std::string tf_prefix = params_.tf_prefix;
-  
-  for (auto& interface_name : {tf_prefix + "dynamic_force_mode/transfer_state", 
-                               tf_prefix + "dynamic_force_mode/time_from_start",
-                               tf_prefix + "dynamic_force_mode/abort"})
-  {
+
+  for (auto& interface_name :
+       { tf_prefix + "dynamic_force_mode/transfer_state", tf_prefix + "dynamic_force_mode/time_from_start",
+         tf_prefix + "dynamic_force_mode/abort" }) {
     auto it = std::find_if(command_interfaces_.begin(), command_interfaces_.end(),
                            [&](auto& interface) { return (interface.get_name() == interface_name); });
     if (it != command_interfaces_.end()) {
       // TODO(george): Must change, but am too lazy to rn...
-      if (interface_name == (tf_prefix + "dynamic_force_mode/transfer_state"))
-      {
+      if (interface_name == (tf_prefix + "dynamic_force_mode/transfer_state")) {
         transfer_command_interface_ = *it;
-      }
-      else if (interface_name == (tf_prefix + "dynamic_force_mode/time_from_start"))
-      {
+      } else if (interface_name == (tf_prefix + "dynamic_force_mode/time_from_start")) {
         time_from_start_command_interface_ = *it;
-      }
-      else if (interface_name == (tf_prefix + "dynamic_force_mode/abort"))
-      {
+      } else if (interface_name == (tf_prefix + "dynamic_force_mode/abort")) {
         abort_command_interface_ = *it;
-      }
-      else
-      {
+      } else {
         RCLCPP_ERROR(get_node()->get_logger(), "Unknown state interface (%s)", interface_name.c_str());
         return controller_interface::CallbackReturn::ERROR;
       }
     } else {
       RCLCPP_ERROR(get_node()->get_logger(), "Did not find '%s' in command interfaces.", interface_name.c_str());
       return controller_interface::CallbackReturn::ERROR;
-    }  
+    }
   }
 
   RCLCPP_INFO(get_node()->get_logger(), "Dynamic path force mode activated");
@@ -237,24 +229,22 @@ ur_controllers::DynamicPathForceModeController::on_deactivate(const rclcpp_lifec
 
   // Abort any active goals
   const auto active_goal = *rt_active_goal_.readFromNonRT();
-  if (active_goal)
-  {
+  if (active_goal) {
     RCLCPP_WARN(get_node()->get_logger(), "Deactivating goal");
     std::shared_ptr<DynamicForceModeAction::Result> result = std::make_shared<DynamicForceModeAction::Result>();
     active_goal->setAborted(result);
   }
-  
+
   return LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
 controller_interface::CallbackReturn
 ur_controllers::DynamicPathForceModeController::on_cleanup(const rclcpp_lifecycle::State& /*previous_state*/)
-{  
+{
   // Abort any active goals
   RCLCPP_WARN(get_node()->get_logger(), "Checking goals");
   const auto active_goal = *rt_active_goal_.readFromNonRT();
-  if (active_goal)
-  {
+  if (active_goal) {
     RCLCPP_WARN(get_node()->get_logger(), "Deactivating goal");
     std::shared_ptr<DynamicForceModeAction::Result> result = std::make_shared<DynamicForceModeAction::Result>();
     active_goal->setAborted(result);
@@ -326,7 +316,7 @@ void DynamicPathForceModeController::initialize_force_mode()
   command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_ABORT].set_value(0.0);
   command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_TRANSFER_STATE].set_value(0.0);
   command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_TIME_FROM_START].set_value(0.0);
-  
+
   // Signal that we are waiting for confirmation that force mode is activated
   command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_ASYNC_SUCCESS].set_value(ASYNC_WAITING);
   RCLCPP_INFO(get_node()->get_logger(), "Done initializing dynamic force mode");
@@ -420,8 +410,7 @@ void DynamicPathForceModeController::update_trajectory_points(std::shared_ptr<Re
   if (current_index_ == 0 && current_transfer_state == TRANSFER_STATE_IDLE) {
     RCLCPP_INFO(get_node()->get_logger(), "Starting trajectory");
     active_path_elapsed_time_ = rclcpp::Duration(0, 0);
-    max_path_trajectory_time_ =
-      rclcpp::Duration::from_seconds(time_from_start(active_path_.poses.back().header.stamp));
+    max_path_trajectory_time_ = rclcpp::Duration::from_seconds(time_from_start(active_path_.poses.back().header.stamp));
     transfer_command_interface_->get().set_value(TRANSFER_WAITING_FOR_POINT);
   }
 
@@ -436,37 +425,32 @@ void DynamicPathForceModeController::update_trajectory_points(std::shared_ptr<Re
 
       // TODO(george): this should get pre-computed
       RCLCPP_INFO(get_node()->get_logger(), "Computing compliance vector");
-      if (current_index_ == active_path_.poses.size()-1)
-      {
-        compute_compliance_vector(active_path_.poses[current_index_-1].pose,
-                                  active_path_.poses[current_index_].pose,
+      if (current_index_ == active_path_.poses.size() - 1) {
+        compute_compliance_vector(active_path_.poses[current_index_ - 1].pose, active_path_.poses[current_index_].pose,
                                   active_goal->gh_->get_goal()->compliance_tolerances);
-      }
-      else
-      {
-        compute_compliance_vector(active_path_.poses[current_index_].pose,
-                                  active_path_.poses[current_index_+1].pose,
+      } else {
+        compute_compliance_vector(active_path_.poses[current_index_].pose, active_path_.poses[current_index_ + 1].pose,
                                   active_goal->gh_->get_goal()->compliance_tolerances);
       }
 
-      //update_pose_actual_desired(active_goal);
+      // update_pose_actual_desired(active_goal);
       transfer_command_interface_->get().set_value(TRANSFER_STATE_IN_MOTION);
     } else if (current_index_ == active_path_.poses.size()) {
-        RCLCPP_INFO(get_node()->get_logger(), "Trajectory done");
-        transfer_command_interface_->get().set_value(TRANSFER_STATE_DONE);
+      RCLCPP_INFO(get_node()->get_logger(), "Trajectory done");
+      transfer_command_interface_->get().set_value(TRANSFER_STATE_DONE);
     } else {
-        RCLCPP_ERROR(get_node()->get_logger(), "Hardware waiting for trajectory point while none is present!");
+      RCLCPP_ERROR(get_node()->get_logger(), "Hardware waiting for trajectory point while none is present!");
     }
   }
 
-  if (current_transfer_state == TRANSFER_STATE_IN_MOTION)
-  {
+  if (current_transfer_state == TRANSFER_STATE_IN_MOTION) {
     if (current_index_ < active_path_.poses.size()) {
       // Get current pose
       tcp_mutex_.lock();
       auto task_frame = tcp_pose_;
       tcp_mutex_.unlock();
-      // auto task_frame_transformed = tf_buffer_->lookupTransform(params_.tf_prefix + "base", "tool0_controller", tf2::TimePointZero); 
+      // auto task_frame_transformed = tf_buffer_->lookupTransform(params_.tf_prefix + "base", "tool0_controller",
+      // tf2::TimePointZero);
       auto target_frame = active_path_.poses[current_index_];
 
       // HACK(george): ChatGPT generate code to get types to agree...
@@ -491,8 +475,7 @@ void DynamicPathForceModeController::update_trajectory_points(std::shared_ptr<Re
 
       tf2::Transform t_diff = compute_relative_transform(task_frame.pose, target_frame.pose);
 
-      if (check_pose_tolerance(t_diff, active_goal->gh_->get_goal()->waypoint_tolerances))
-      {
+      if (check_pose_tolerance(t_diff, active_goal->gh_->get_goal()->waypoint_tolerances)) {
         // Reached target within threshold
         RCLCPP_INFO(get_node()->get_logger(), "Reached waypoint index %lu", current_index_.load());
         current_index_++;
@@ -500,12 +483,21 @@ void DynamicPathForceModeController::update_trajectory_points(std::shared_ptr<Re
       }
 
       auto feedback = std::make_shared<DynamicForceModeAction::Feedback>();
-      
+
+      feedback->pose_actual = task_frame.pose;
+      feedback->pose_desired = target_frame.pose;
+
       feedback->pose_error.position.x = t_diff.getOrigin().getX();
       feedback->pose_error.position.y = t_diff.getOrigin().getY();
       feedback->pose_error.position.z = t_diff.getOrigin().getZ();
 
-      // RCLCPP_INFO(get_node()->get_logger(), "Err: %.3f %.3f %.3f", feedback->pose_error.position.x, feedback->pose_error.position.y, feedback->pose_error.position.z);
+      feedback->pose_error.orientation.w = t_diff.getRotation().getW();
+      feedback->pose_error.orientation.x = t_diff.getRotation().getX();
+      feedback->pose_error.orientation.y = t_diff.getRotation().getY();
+      feedback->pose_error.orientation.z = t_diff.getRotation().getZ();
+
+      // RCLCPP_INFO(get_node()->get_logger(), "Err: %.3f %.3f %.3f", feedback->pose_error.position.x,
+      // feedback->pose_error.position.y, feedback->pose_error.position.z);
 
       active_goal->gh_->publish_feedback(feedback);
     } else {
@@ -513,8 +505,7 @@ void DynamicPathForceModeController::update_trajectory_points(std::shared_ptr<Re
     }
   }
 
-  if (current_transfer_state == TRANSFER_STATE_DONE)
-  {
+  if (current_transfer_state == TRANSFER_STATE_DONE) {
     auto result = active_goal->preallocated_result_;
     active_goal->setSucceeded(result);
     end_goal();
@@ -524,7 +515,8 @@ void DynamicPathForceModeController::update_trajectory_points(std::shared_ptr<Re
 bool DynamicPathForceModeController::check_pose_tolerance(tf2::Transform& tf, std::array<float, 6> tolerances)
 {
   auto t = tf.getOrigin();
-  //RCLCPP_INFO(get_node()->get_logger(), "diff: %.4f %.4f %.4f %.4f %.4f %.4f", t.getX(), t.getY(), t.getZ(), tolerances[0], tolerances[1], tolerances[2]);
+  // RCLCPP_INFO(get_node()->get_logger(), "diff: %.4f %.4f %.4f %.4f %.4f %.4f", t.getX(), t.getY(), t.getZ(),
+  // tolerances[0], tolerances[1], tolerances[2]);
   return std::fabs(t.getX()) < tolerances[0] && std::fabs(t.getY()) < tolerances[1] &&
          std::fabs(t.getZ()) < tolerances[2];
 }
@@ -548,7 +540,7 @@ ur_controllers::DynamicPathForceModeController::update(const rclcpp::Time& /*tim
     change_requested_ = false;
   }
 
-  //RCLCPP_INFO(get_node()->get_logger(), "Reading active goal");
+  // RCLCPP_INFO(get_node()->get_logger(), "Reading active goal");
   const auto active_goal = *rt_active_goal_.readFromRT();
   if (active_goal && force_mode_active_) {
     // Update dynamic force mode parameters
@@ -595,16 +587,18 @@ void DynamicPathForceModeController::compute_task_frame(geometry_msgs::msg::Pose
   command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_TASK_FRAME_RY].set_value(rpy[1]);
   command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_TASK_FRAME_RZ].set_value(rpy[2]);
 
-  RCLCPP_INFO(get_node()->get_logger(), "Updating pose: %.4f %.4f %.4f %.4f %.4f %.4f", pose.position.x, pose.position.y, pose.position.z,
-  rpy[0], rpy[1], rpy[2]);
+  RCLCPP_INFO(get_node()->get_logger(), "Updating pose: %.4f %.4f %.4f %.4f %.4f %.4f", pose.position.x,
+              pose.position.y, pose.position.z, rpy[0], rpy[1], rpy[2]);
 }
 
 void DynamicPathForceModeController::compute_compliance_vector(geometry_msgs::msg::Pose& t1,
                                                                geometry_msgs::msg::Pose& t2,
                                                                std::array<float, 6> tolerances)
 {
-  RCLCPP_INFO(get_node()->get_logger(), "T1: %.4f %.4f %.4f, %.4f %.4f %.4f %.4f", t1.position.x, t1.position.y, t1.position.z, t1.orientation.w, t1.orientation.x, t1.orientation.y, t1.orientation.z);
-  RCLCPP_INFO(get_node()->get_logger(), "T2: %.4f %.4f %.4f, %.4f %.4f %.4f %.4f", t2.position.x, t2.position.y, t2.position.z, t2.orientation.w, t2.orientation.x, t2.orientation.y, t2.orientation.z);
+  RCLCPP_INFO(get_node()->get_logger(), "T1: %.4f %.4f %.4f, %.4f %.4f %.4f %.4f", t1.position.x, t1.position.y,
+              t1.position.z, t1.orientation.w, t1.orientation.x, t1.orientation.y, t1.orientation.z);
+  RCLCPP_INFO(get_node()->get_logger(), "T2: %.4f %.4f %.4f, %.4f %.4f %.4f %.4f", t2.position.x, t2.position.y,
+              t2.position.z, t2.orientation.w, t2.orientation.x, t2.orientation.y, t2.orientation.z);
 
   tf2::Transform tf_out = compute_relative_transform(t1, t2);
 
@@ -640,8 +634,7 @@ bool DynamicPathForceModeController::waitForAsyncCommand(std::function<double(vo
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     retries++;
 
-    if (retries > maximum_retries)
-    {
+    if (retries > maximum_retries) {
       RCLCPP_INFO(get_node()->get_logger(), "Failure");
       return false;
     }
