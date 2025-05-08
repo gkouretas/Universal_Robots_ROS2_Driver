@@ -66,7 +66,7 @@
 #include <geometry_msgs/msg/pose.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <std_srvs/srv/trigger.hpp>
-#include <ur_msgs/srv/set_force_mode.hpp>
+#include <ur_msgs/srv/dynamic_force_mode_set_execution.hpp>
 #include <ur_msgs/action/dynamic_force_mode_path.hpp>
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
 #include <control_msgs/action/follow_joint_trajectory.hpp>
@@ -180,7 +180,6 @@ private:
   double time_from_start(const builtin_interfaces::msg::Time& time) const;
   bool setForceMode(const ForceModeRequest* req);
   bool disableForceMode(void);
-  rclcpp::Service<ur_msgs::srv::SetForceMode>::SharedPtr set_force_mode_srv_;
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr disable_force_mode_srv_;
 
   std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
@@ -219,7 +218,9 @@ private:
   rclcpp::TimerBase::SharedPtr goal_handle_timer_;  ///< Timer to frequently check on the running goal
   rclcpp::Duration action_monitor_period_ = rclcpp::Duration(50ms);
 
-  void initialize_force_mode();
+  void initialize_force_mode(void);
+  bool set_execution(const ur_msgs::srv::DynamicForceModeSetExecution::Request::SharedPtr req,
+                           ur_msgs::srv::DynamicForceModeSetExecution::Response::SharedPtr resp);
   void update_trajectory_points(std::shared_ptr<RealtimeGoalHandle> active_goal);
   void update_pose_actual_desired(std::shared_ptr<RealtimeGoalHandle> active_goal);
   bool find_pose_desired(void);
@@ -235,6 +236,7 @@ private:
   dynamic_path_force_mode_controller::Params dynamic_force_mode_params_;
 
   rclcpp_action::Server<DynamicForceModeAction>::SharedPtr dynamic_force_mode_action_server_;
+  rclcpp::Service<ur_msgs::srv::DynamicForceModeSetExecution>::SharedPtr dynamic_force_mode_set_execution_;
 
   rclcpp_action::GoalResponse goal_received_callback(const rclcpp_action::GoalUUID& uuid,
                                                      std::shared_ptr<const DynamicForceModeAction::Goal> goal);
@@ -251,6 +253,7 @@ private:
   std::atomic<size_t> current_index_;
   std::atomic<double> initial_time_;
   std::atomic<bool> path_active_;
+  std::atomic<bool> is_paused_;
   rclcpp::Duration active_path_elapsed_time_ = rclcpp::Duration::from_nanoseconds(0);
   rclcpp::Duration max_path_trajectory_time_ = rclcpp::Duration::from_nanoseconds(0);
   double scaling_factor_;

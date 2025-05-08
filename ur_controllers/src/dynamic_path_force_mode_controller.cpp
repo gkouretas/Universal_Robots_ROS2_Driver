@@ -151,7 +151,7 @@ ur_controllers::DynamicPathForceModeController::on_configure(const rclcpp_lifecy
       "tcp_pose_broadcaster/pose", 10,
       std::bind(&DynamicPathForceModeController::pose_cmd_callback, this, std::placeholders::_1));
 
-  // Create the service server that will be used to start force mode
+  // Create the action server that will be used to start force mode
   try {
     RCLCPP_INFO(get_node()->get_logger(), (std::string(get_node()->get_name()) + "/dynamic_force_mode_path").c_str());
     dynamic_force_mode_action_server_ = rclcpp_action::create_server<DynamicForceModeAction>(
@@ -160,12 +160,66 @@ ur_controllers::DynamicPathForceModeController::on_configure(const rclcpp_lifecy
                   std::placeholders::_2),
         std::bind(&DynamicPathForceModeController::goal_cancelled_callback, this, std::placeholders::_1),
         std::bind(&DynamicPathForceModeController::goal_accepted_callback, this, std::placeholders::_1));
+
+    dynamic_force_mode_set_execution_ = get_node()->create_service<ur_msgs::srv::DynamicForceModeSetExecution>(
+        "~/dynamic_force_mode_set_execution",
+        std::bind(&DynamicPathForceModeController::set_execution, this, std::placeholders::_1, std::placeholders::_2));
   } catch (...) {
     RCLCPP_ERROR(get_node()->get_logger(), "Error when configuring dynamic path force mode controller");
     return LifecycleNodeInterface::CallbackReturn::ERROR;
   }
 
   return ControllerInterface::on_configure(previous_state);
+}
+
+bool DynamicPathForceModeController::set_execution(const ur_msgs::srv::DynamicForceModeSetExecution::Request::SharedPtr req,
+                                                         ur_msgs::srv::DynamicForceModeSetExecution::Response::SharedPtr resp)
+{
+  RCLCPP_WARN(get_node()->get_logger(), "Received execution setter request");
+  if (force_mode_active_)
+  {
+    if (req->run && is_paused_)
+    {
+      // Update compliance vector if we were previously paused
+      const auto active_goal = *rt_active_goal_.readFromNonRT();
+      if (current_index_ == active_path_.poses.size() - 1) {
+        compute_compliance_vector(active_path_.poses[current_index_ - 1].pose, active_path_.poses[current_index_].pose,
+                                  active_goal->gh_->get_goal()->compliance_tolerances);
+      } else {
+        compute_compliance_vector(active_path_.poses[current_index_].pose, active_path_.poses[current_index_ + 1].pose,
+                                  active_goal->gh_->get_goal()->compliance_tolerances);
+      }
+    }
+    else if (!req->run && !is_paused_)
+    {
+      // Set all compliance vectors to 0 to disable motion
+      command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_X].set_value(0.0);
+      command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_Y].set_value(0.0);
+      command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_Z].set_value(0.0);
+      command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_X].set_value(0.0);
+      command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_RX].set_value(0.0);
+      command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_RY].set_value(0.0);
+      command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_RZ].set_value(0.0);
+    }
+    else
+    {
+      // Redundant transition, consider this a failure
+      RCLCPP_WARN(get_node()->get_logger(), "Redundant request %d when current state is %d", req->run, is_paused_.load());
+      resp->success = false;
+      return false;
+    }
+
+    is_paused_ = req->run ? false : true;
+  }
+  else
+  {
+    RCLCPP_WARN(get_node()->get_logger(), "Dynamic force control not active, ignoring request");
+    resp->success = false;
+    return false;
+  }
+  
+  resp->success = true;
+  return true;
 }
 
 void DynamicPathForceModeController::pose_cmd_callback(const std::shared_ptr<geometry_msgs::msg::PoseStamped> msg)
@@ -216,6 +270,7 @@ ur_controllers::DynamicPathForceModeController::on_activate(const rclcpp_lifecyc
   RCLCPP_INFO(get_node()->get_logger(), "Dynamic path force mode activated");
   change_requested_ = false;
   force_mode_active_ = false;
+  is_paused_ = false;
   async_state_ = std::numeric_limits<double>::quiet_NaN();
   return LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
@@ -425,12 +480,16 @@ void DynamicPathForceModeController::update_trajectory_points(std::shared_ptr<Re
 
       // TODO(george): this should get pre-computed
       RCLCPP_INFO(get_node()->get_logger(), "Computing compliance vector");
-      if (current_index_ == active_path_.poses.size() - 1) {
-        compute_compliance_vector(active_path_.poses[current_index_ - 1].pose, active_path_.poses[current_index_].pose,
-                                  active_goal->gh_->get_goal()->compliance_tolerances);
-      } else {
-        compute_compliance_vector(active_path_.poses[current_index_].pose, active_path_.poses[current_index_ + 1].pose,
-                                  active_goal->gh_->get_goal()->compliance_tolerances);
+
+      if (!is_paused_)
+      {
+        if (current_index_ == active_path_.poses.size() - 1) {
+          compute_compliance_vector(active_path_.poses[current_index_ - 1].pose, active_path_.poses[current_index_].pose,
+                                    active_goal->gh_->get_goal()->compliance_tolerances);
+        } else {
+          compute_compliance_vector(active_path_.poses[current_index_].pose, active_path_.poses[current_index_ + 1].pose,
+                                    active_goal->gh_->get_goal()->compliance_tolerances);
+        }
       }
 
       // update_pose_actual_desired(active_goal);
@@ -524,10 +583,8 @@ bool DynamicPathForceModeController::check_pose_tolerance(tf2::Transform& tf, st
 controller_interface::return_type
 ur_controllers::DynamicPathForceModeController::update(const rclcpp::Time& /*time*/, const rclcpp::Duration& /*period*/)
 {
-  //  RCLCPP_INFO(get_node()->get_logger(), "Updating");
   async_state_ = command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_ASYNC_SUCCESS].get_value();
 
-  // Publish state of dynamic_force_mode?
   if (change_requested_) {
     if (force_mode_active_) {
       initialize_force_mode();
@@ -540,12 +597,8 @@ ur_controllers::DynamicPathForceModeController::update(const rclcpp::Time& /*tim
     change_requested_ = false;
   }
 
-  // RCLCPP_INFO(get_node()->get_logger(), "Reading active goal");
   const auto active_goal = *rt_active_goal_.readFromRT();
   if (active_goal && force_mode_active_) {
-    // Update dynamic force mode parameters
-    auto logger = this->get_node()->get_logger();
-
     update_trajectory_points(active_goal);
     RCLCPP_DEBUG(get_node()->get_logger(), "Done updating points");
   }
