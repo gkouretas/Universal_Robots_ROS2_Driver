@@ -446,7 +446,8 @@ void DynamicPathForceModeController::update_trajectory_points(std::shared_ptr<Re
     RCLCPP_DEBUG(get_node()->get_logger(), "Not idle");
     if (abort_command_interface_->get().get_value() == 1.0 && current_index_ > 0) {
       RCLCPP_INFO(get_node()->get_logger(), "Trajectory aborted by hardware, aborting action.");
-      std::shared_ptr<DynamicForceModeAction::Result> result = std::make_shared<DynamicForceModeAction::Result>();
+      auto result = active_goal->preallocated_result_;
+      result->error_string = "Trajectory aborted by hardware, aborting action.";
       active_goal->setAborted(result);
       end_goal();
       return;
@@ -508,30 +509,8 @@ void DynamicPathForceModeController::update_trajectory_points(std::shared_ptr<Re
       tcp_mutex_.lock();
       auto task_frame = tcp_pose_;
       tcp_mutex_.unlock();
-      // auto task_frame_transformed = tf_buffer_->lookupTransform(params_.tf_prefix + "base", "tool0_controller",
-      // tf2::TimePointZero);
+
       auto target_frame = active_path_.poses[current_index_];
-
-      // HACK(george): ChatGPT generate code to get types to agree...
-      // probably should just use tcp_pose_broadcaster...
-      // Create a PoseStamped message
-      // geometry_msgs::msg::PoseStamped pose;
-      // pose.header.stamp = get_node()->get_clock()->now();
-      // pose.header.frame_id = "tool0_controller";  // Pose is in the child frame initially
-
-      // Set pose to identity (default position at origin)
-      // pose.pose.position.x = 0.0;
-      // pose.pose.position.y = 0.0;
-      // pose.pose.position.z = 0.0;
-      // pose.pose.orientation.x = 0.0;
-      // pose.pose.orientation.y = 0.0;
-      // pose.pose.orientation.z = 0.0;
-      // pose.pose.orientation.w = 1.0;  // Identity quaternion
-
-      // Transform the pose to the parent frame
-      // geometry_msgs::msg::PoseStamped transformed_pose;
-      // tf2::doTransform(pose, transformed_pose, task_frame_transformed);
-
       tf2::Transform t_diff = compute_relative_transform(task_frame.pose, target_frame.pose);
 
       if (check_pose_tolerance(t_diff, active_goal->gh_->get_goal()->waypoint_tolerances)) {
@@ -566,6 +545,8 @@ void DynamicPathForceModeController::update_trajectory_points(std::shared_ptr<Re
 
   if (current_transfer_state == TRANSFER_STATE_DONE) {
     auto result = active_goal->preallocated_result_;
+    result->error_code = ur_msgs::action::DynamicForceModePath::Result::SUCCESSFUL;
+    result->error_string = "Dynamic force mode completed.";
     active_goal->setSucceeded(result);
     end_goal();
   }
@@ -882,6 +863,12 @@ void DynamicPathForceModeController::goal_accepted_callback(
   current_index_ = 0;
   initial_time_ = time_to_double(goal_handle->get_goal()->force_mode_path.poses[0].header.stamp);
 
+  rt_goal->execute();
+  rt_active_goal_.writeFromNonRT(rt_goal);
+  goal_handle_timer_.reset();
+  goal_handle_timer_ = get_node()->create_wall_timer(action_monitor_period_.to_chrono<std::chrono::nanoseconds>(),
+                                                     std::bind(&RealtimeGoalHandle::runNonRealtime, rt_goal));
+
   // Activate force mode and make change request
   force_mode_active_ = true;
   change_requested_ = true;
@@ -893,8 +880,6 @@ void DynamicPathForceModeController::goal_accepted_callback(
                                           "using the "
                                           "mocked interface)");
   }
-
-  rt_active_goal_.writeFromNonRT(rt_goal);
 
   return;
 }
