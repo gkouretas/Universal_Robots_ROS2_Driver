@@ -172,14 +172,13 @@ ur_controllers::DynamicPathForceModeController::on_configure(const rclcpp_lifecy
   return ControllerInterface::on_configure(previous_state);
 }
 
-bool DynamicPathForceModeController::set_execution(const ur_msgs::srv::DynamicForceModeSetExecution::Request::SharedPtr req,
-                                                         ur_msgs::srv::DynamicForceModeSetExecution::Response::SharedPtr resp)
+bool DynamicPathForceModeController::set_execution(
+    const ur_msgs::srv::DynamicForceModeSetExecution::Request::SharedPtr req,
+    ur_msgs::srv::DynamicForceModeSetExecution::Response::SharedPtr resp)
 {
   RCLCPP_WARN(get_node()->get_logger(), "Received execution setter request");
-  if (force_mode_active_)
-  {
-    if (req->run && is_paused_)
-    {
+  if (force_mode_active_) {
+    if (req->run && is_paused_) {
       // Update compliance vector if we were previously paused
       const auto active_goal = *rt_active_goal_.readFromNonRT();
       if (current_index_ == active_path_.poses.size() - 1) {
@@ -189,9 +188,7 @@ bool DynamicPathForceModeController::set_execution(const ur_msgs::srv::DynamicFo
         compute_compliance_vector(active_path_.poses[current_index_].pose, active_path_.poses[current_index_ + 1].pose,
                                   active_goal->gh_->get_goal()->compliance_tolerances);
       }
-    }
-    else if (!req->run && !is_paused_)
-    {
+    } else if (!req->run && !is_paused_) {
       // Set all compliance vectors to 0 to disable motion
       command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_X].set_value(0.0);
       command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_Y].set_value(0.0);
@@ -200,24 +197,21 @@ bool DynamicPathForceModeController::set_execution(const ur_msgs::srv::DynamicFo
       command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_RX].set_value(0.0);
       command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_RY].set_value(0.0);
       command_interfaces_[CommandInterfaces::DYNAMIC_FORCE_MODE_SELECTION_VECTOR_RZ].set_value(0.0);
-    }
-    else
-    {
+    } else {
       // Redundant transition, consider this a failure
-      RCLCPP_WARN(get_node()->get_logger(), "Redundant request %d when current state is %d", req->run, is_paused_.load());
+      RCLCPP_WARN(get_node()->get_logger(), "Redundant request %d when current state is %d", req->run,
+                  is_paused_.load());
       resp->success = false;
       return false;
     }
 
     is_paused_ = req->run ? false : true;
-  }
-  else
-  {
+  } else {
     RCLCPP_WARN(get_node()->get_logger(), "Dynamic force control not active, ignoring request");
     resp->success = false;
     return false;
   }
-  
+
   resp->success = true;
   return true;
 }
@@ -482,13 +476,14 @@ void DynamicPathForceModeController::update_trajectory_points(std::shared_ptr<Re
       // TODO(george): this should get pre-computed
       RCLCPP_INFO(get_node()->get_logger(), "Computing compliance vector");
 
-      if (!is_paused_)
-      {
+      if (!is_paused_) {
         if (current_index_ == active_path_.poses.size() - 1) {
-          compute_compliance_vector(active_path_.poses[current_index_ - 1].pose, active_path_.poses[current_index_].pose,
+          compute_compliance_vector(active_path_.poses[current_index_ - 1].pose,
+                                    active_path_.poses[current_index_].pose,
                                     active_goal->gh_->get_goal()->compliance_tolerances);
         } else {
-          compute_compliance_vector(active_path_.poses[current_index_].pose, active_path_.poses[current_index_ + 1].pose,
+          compute_compliance_vector(active_path_.poses[current_index_].pose,
+                                    active_path_.poses[current_index_ + 1].pose,
                                     active_goal->gh_->get_goal()->compliance_tolerances);
         }
       }
@@ -533,6 +528,9 @@ void DynamicPathForceModeController::update_trajectory_points(std::shared_ptr<Re
       feedback->pose_error.orientation.x = t_diff.getRotation().getX();
       feedback->pose_error.orientation.y = t_diff.getRotation().getY();
       feedback->pose_error.orientation.z = t_diff.getRotation().getZ();
+
+      feedback->is_paused = is_paused_;
+      feedback->progress_percentage = static_cast<float>(current_index_) / active_path_.poses.size();
 
       // RCLCPP_INFO(get_node()->get_logger(), "Err: %.3f %.3f %.3f", feedback->pose_error.position.x,
       // feedback->pose_error.position.y, feedback->pose_error.position.z);

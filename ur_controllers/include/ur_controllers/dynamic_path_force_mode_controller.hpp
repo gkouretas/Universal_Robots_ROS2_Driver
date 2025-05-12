@@ -220,14 +220,15 @@ private:
 
   void initialize_force_mode(void);
   bool set_execution(const ur_msgs::srv::DynamicForceModeSetExecution::Request::SharedPtr req,
-                           ur_msgs::srv::DynamicForceModeSetExecution::Response::SharedPtr resp);
+                     ur_msgs::srv::DynamicForceModeSetExecution::Response::SharedPtr resp);
   void update_trajectory_points(std::shared_ptr<RealtimeGoalHandle> active_goal);
   void update_pose_actual_desired(std::shared_ptr<RealtimeGoalHandle> active_goal);
   bool find_pose_desired(void);
   tf2::Transform interpolate_poses(geometry_msgs::msg::Pose& t1, geometry_msgs::msg::Pose& t2, double factor);
   bool check_pose_tolerance(tf2::Transform& tf, std::array<float, 6> tolerances);
   void compute_task_frame(geometry_msgs::msg::Pose& pose);
-  void compute_compliance_vector(geometry_msgs::msg::Pose& t1, geometry_msgs::msg::Pose& t2, std::array<float, 6> tolerances);
+  void compute_compliance_vector(geometry_msgs::msg::Pose& t1, geometry_msgs::msg::Pose& t2,
+                                 std::array<float, 6> tolerances);
   tf2::Transform compute_relative_transform(geometry_msgs::msg::Pose& t1, geometry_msgs::msg::Pose& t2);
   tf2::Transform compute_relative_transform(tf2::Transform& t1, tf2::Transform& t2);
 
@@ -259,7 +260,7 @@ private:
   double scaling_factor_;
   static constexpr double NO_VAL = std::numeric_limits<double>::quiet_NaN();
 
-  //std::optional<std::reference_wrapper<hardware_interface::LoanedStateInterface>> scaling_state_interface_;
+  // std::optional<std::reference_wrapper<hardware_interface::LoanedStateInterface>> scaling_state_interface_;
   std::optional<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> abort_command_interface_;
   std::optional<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> transfer_command_interface_;
   std::optional<std::reference_wrapper<hardware_interface::LoanedCommandInterface>> time_from_start_command_interface_;
