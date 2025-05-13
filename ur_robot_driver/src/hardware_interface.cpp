@@ -399,11 +399,11 @@ std::vector<hardware_interface::CommandInterface> URPositionHardwareInterface::e
   }
 
   command_interfaces.emplace_back(
-        hardware_interface::CommandInterface(tf_prefix + DYNAMIC_FORCE_MODE_GPIO, "abort", &dynamic_force_mode_abort_));
-  command_interfaces.emplace_back(
-        hardware_interface::CommandInterface(tf_prefix + DYNAMIC_FORCE_MODE_GPIO, "transfer_state", &dynamic_force_mode_transfer_state_));
-  command_interfaces.emplace_back(
-        hardware_interface::CommandInterface(tf_prefix + DYNAMIC_FORCE_MODE_GPIO, "time_from_start", &dynamic_force_mode_time_from_start_));
+      hardware_interface::CommandInterface(tf_prefix + DYNAMIC_FORCE_MODE_GPIO, "abort", &dynamic_force_mode_abort_));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + DYNAMIC_FORCE_MODE_GPIO, "transfer_state", &dynamic_force_mode_transfer_state_));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + DYNAMIC_FORCE_MODE_GPIO, "time_from_start", &dynamic_force_mode_time_from_start_));
 
   for (size_t i = 0; i < 18; ++i) {
     command_interfaces.emplace_back(hardware_interface::CommandInterface(
@@ -1300,14 +1300,15 @@ hardware_interface::return_type URPositionHardwareInterface::prepare_command_mod
       (std::any_of(start_modes_[0].begin(), start_modes_[0].end(),
                    [this](auto& item) {
                      return (item == hardware_interface::HW_IF_VELOCITY || item == hardware_interface::HW_IF_POSITION ||
-                            //  item == PASSTHROUGH_GPIO || item == FORCE_MODE_GPIO || item == DYNAMIC_FORCE_MODE_GPIO);
-                             item == PASSTHROUGH_GPIO || item == FORCE_MODE_GPIO); // TODO(george): why does this get tripped???
+                             //  item == PASSTHROUGH_GPIO || item == FORCE_MODE_GPIO || item ==
+                             //  DYNAMIC_FORCE_MODE_GPIO);
+                             item == PASSTHROUGH_GPIO ||
+                             item == FORCE_MODE_GPIO);  // TODO(george): why does this get tripped???
                    }) ||
        std::any_of(control_modes[0].begin(), control_modes[0].end(), [this](auto& item) {
          return (item == hardware_interface::HW_IF_VELOCITY || item == hardware_interface::HW_IF_POSITION ||
-                //  item == PASSTHROUGH_GPIO || item == FORCE_MODE_GPIO || item == DYNAMIC_FORCE_MODE_GPIO);
+                 //  item == PASSTHROUGH_GPIO || item == FORCE_MODE_GPIO || item == DYNAMIC_FORCE_MODE_GPIO);
                  item == PASSTHROUGH_GPIO || item == FORCE_MODE_GPIO);
-
        }))) {
     RCLCPP_ERROR(rclcpp::get_logger("URPosistionHardwareInterface"), "Attempting to start freedrive mode control while "
                                                                      "there is either position, passthrough "
