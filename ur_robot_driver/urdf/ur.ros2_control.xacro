@@ -207,6 +207,12 @@
         <command_interface name="cog.x"/>
         <command_interface name="cog.y"/>
         <command_interface name="cog.z"/>
+        <command_interface name="inertia.xx"/>
+        <command_interface name="inertia.yy"/>
+        <command_interface name="inertia.zz"/>
+        <command_interface name="inertia.xy"/>
+        <command_interface name="inertia.xz"/>
+        <command_interface name="inertia.yz"/>
         <command_interface name="payload_async_success"/>
       </gpio>
 

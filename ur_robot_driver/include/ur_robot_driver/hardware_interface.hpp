@@ -252,6 +252,7 @@ protected:
 
   // payload stuff
   urcl::vector3d_t payload_center_of_gravity_;
+  urcl::vector6d_t payload_inertia_matrix_;
   double payload_mass_;
   double payload_async_success_;
 

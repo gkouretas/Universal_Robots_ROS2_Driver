@@ -319,6 +319,18 @@ std::vector<hardware_interface::CommandInterface> URPositionHardwareInterface::e
   command_interfaces.emplace_back(
       hardware_interface::CommandInterface(tf_prefix + "payload", "cog.z", &payload_center_of_gravity_[2]));
   command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + "payload", "inertia.xx", &payload_inertia_matrix_[0]));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + "payload", "inertia.yy", &payload_inertia_matrix_[1]));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + "payload", "inertia.zz", &payload_inertia_matrix_[2]));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + "payload", "inertia.xy", &payload_inertia_matrix_[3]));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + "payload", "inertia.xz", &payload_inertia_matrix_[4]));
+  command_interfaces.emplace_back(
+      hardware_interface::CommandInterface(tf_prefix + "payload", "inertia.yz", &payload_inertia_matrix_[5]));
+  command_interfaces.emplace_back(
       hardware_interface::CommandInterface(tf_prefix + "payload", "payload_async_success", &payload_async_success_));
 
   for (auto& io_string : { FORCE_MODE_GPIO, DYNAMIC_FORCE_MODE_GPIO }) {
@@ -923,6 +935,7 @@ void URPositionHardwareInterface::initAsyncIO()
 
   payload_mass_ = NO_NEW_CMD_;
   payload_center_of_gravity_ = { NO_NEW_CMD_, NO_NEW_CMD_, NO_NEW_CMD_ };
+  payload_inertia_matrix_ = { NO_NEW_CMD_, NO_NEW_CMD_, NO_NEW_CMD_, NO_NEW_CMD_, NO_NEW_CMD_, NO_NEW_CMD_ };
 
   dynamic_force_mode_params_srv_damping_ = NO_NEW_CMD_;
   dynamic_force_mode_params_srv_gain_scaling_ = NO_NEW_CMD_;
@@ -989,10 +1002,14 @@ void URPositionHardwareInterface::checkAsyncIO()
 
   if (!std::isnan(payload_mass_) && !std::isnan(payload_center_of_gravity_[0]) &&
       !std::isnan(payload_center_of_gravity_[1]) && !std::isnan(payload_center_of_gravity_[2]) &&
+      !std::isnan(payload_inertia_matrix_[0]) && !std::isnan(payload_inertia_matrix_[1]) &&
+      !std::isnan(payload_inertia_matrix_[2]) && !std::isnan(payload_inertia_matrix_[3]) &&
+      !std::isnan(payload_inertia_matrix_[4]) && !std::isnan(payload_inertia_matrix_[5]) &&
       ur_driver_ != nullptr) {
-    payload_async_success_ = ur_driver_->setPayload(payload_mass_, payload_center_of_gravity_);
+    payload_async_success_ = ur_driver_->setPayload(payload_mass_, payload_center_of_gravity_, payload_inertia_matrix_);
     payload_mass_ = NO_NEW_CMD_;
     payload_center_of_gravity_ = { NO_NEW_CMD_, NO_NEW_CMD_, NO_NEW_CMD_ };
+    payload_inertia_matrix_ = { NO_NEW_CMD_, NO_NEW_CMD_, NO_NEW_CMD_, NO_NEW_CMD_, NO_NEW_CMD_, NO_NEW_CMD_ };
   }
 
   if (!std::isnan(zero_ftsensor_cmd_) && ur_driver_ != nullptr) {

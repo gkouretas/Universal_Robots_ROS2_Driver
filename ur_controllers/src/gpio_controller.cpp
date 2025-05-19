@@ -87,6 +87,12 @@ controller_interface::InterfaceConfiguration GPIOController::command_interface_c
   config.names.emplace_back(tf_prefix + "payload/cog.x");
   config.names.emplace_back(tf_prefix + "payload/cog.y");
   config.names.emplace_back(tf_prefix + "payload/cog.z");
+  config.names.emplace_back(tf_prefix + "payload/inertia.xx");
+  config.names.emplace_back(tf_prefix + "payload/inertia.yy");
+  config.names.emplace_back(tf_prefix + "payload/inertia.zz");
+  config.names.emplace_back(tf_prefix + "payload/inertia.xy");
+  config.names.emplace_back(tf_prefix + "payload/inertia.xz");
+  config.names.emplace_back(tf_prefix + "payload/inertia.yz");
   config.names.emplace_back(tf_prefix + "payload/payload_async_success");
 
   // FTS sensor
