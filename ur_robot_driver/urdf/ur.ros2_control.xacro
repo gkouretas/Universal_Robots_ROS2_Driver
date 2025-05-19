@@ -352,6 +352,15 @@
         <command_interface name="abort"/>
       </gpio>
 
+      <gpio name="${tf_prefix}tcp_pose_offset">
+        <command_interface name="pose.x"/>
+        <command_interface name="pose.y"/>
+        <command_interface name="pose.z"/>
+        <command_interface name="pose.rx"/>
+        <command_interface name="pose.ry"/>
+        <command_interface name="pose.rz"/>
+        <command_interface name="tcp_pose_offset_async_success"/>
+      </gpio>
 
       <gpio name="${tf_prefix}get_robot_software_version">
         <state_interface name="get_version_major"/>

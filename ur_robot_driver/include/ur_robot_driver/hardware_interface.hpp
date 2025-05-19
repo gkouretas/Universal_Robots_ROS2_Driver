@@ -292,6 +292,10 @@ protected:
   double dynamic_force_mode_params_srv_gain_scaling_;
   double dynamic_force_mode_params_srv_async_success_;
 
+  // tcp pose offset
+  urcl::vector6d_t tcp_pose_offset_;
+  double tcp_pose_offset_async_success_;
+
   // copy of non double values
   std::array<double, 18> actual_dig_out_bits_copy_;
   std::array<double, 18> actual_dig_in_bits_copy_;

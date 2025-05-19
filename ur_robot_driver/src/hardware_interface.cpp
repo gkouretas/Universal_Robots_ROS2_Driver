@@ -512,6 +512,22 @@ std::vector<hardware_interface::CommandInterface> URPositionHardwareInterface::e
                                                                          &passthrough_trajectory_accelerations_[i]));
   }
 
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + "tcp_offset", "pose.x", &tcp_pose_offset_[0]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + "tcp_offset", "pose.y", &tcp_pose_offset_[1]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + "tcp_offset", "pose.z", &tcp_pose_offset_[2]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + "tcp_offset", "pose.rx", &tcp_pose_offset_[3]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + "tcp_offset", "pose.ry", &tcp_pose_offset_[4]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + "tcp_offset", "pose.rz", &tcp_pose_offset_[5]));
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+      tf_prefix + "tcp_offset", "tcp_pose_offset_async_success", &tcp_pose_offset_async_success_));
+
+
   return command_interfaces;
 }
 
@@ -939,6 +955,8 @@ void URPositionHardwareInterface::initAsyncIO()
 
   dynamic_force_mode_params_srv_damping_ = NO_NEW_CMD_;
   dynamic_force_mode_params_srv_gain_scaling_ = NO_NEW_CMD_;
+
+  tcp_pose_offset_ = { NO_NEW_CMD_, NO_NEW_CMD_, NO_NEW_CMD_,  NO_NEW_CMD_,  NO_NEW_CMD_,  NO_NEW_CMD_ };
 }
 
 void URPositionHardwareInterface::checkAsyncIO()
@@ -1063,6 +1081,14 @@ void URPositionHardwareInterface::checkAsyncIO()
         ur_driver_->writeFreedriveControlMessage(urcl::control::FreedriveControlMessage::FREEDRIVE_STOP);
     freedrive_activated_ = false;
     freedrive_mode_abort_ = NO_NEW_CMD_;
+  }
+
+  if (!std::isnan(tcp_pose_offset_[0]) && !std::isnan(tcp_pose_offset_[1]) &&
+      !std::isnan(tcp_pose_offset_[2]) && !std::isnan(tcp_pose_offset_[3]) &&
+      !std::isnan(tcp_pose_offset_[4]) && !std::isnan(tcp_pose_offset_[5]) &&
+      ur_driver_ != nullptr) {
+    tcp_pose_offset_async_success_ = ur_driver_->setTCPPoseOffset(tcp_pose_offset_);
+    tcp_pose_offset_ = { NO_NEW_CMD_, NO_NEW_CMD_, NO_NEW_CMD_, NO_NEW_CMD_, NO_NEW_CMD_, NO_NEW_CMD_ };
   }
 }
 
