@@ -525,7 +525,7 @@ std::vector<hardware_interface::CommandInterface> URPositionHardwareInterface::e
   command_interfaces.emplace_back(hardware_interface::CommandInterface(
       tf_prefix + "tcp_offset", "pose.rz", &tcp_pose_offset_[5]));
   command_interfaces.emplace_back(hardware_interface::CommandInterface(
-      tf_prefix + "tcp_offset", "tcp_pose_offset_async_success", &tcp_pose_offset_async_success_));
+      tf_prefix + "tcp_offset", "tcp_offset_async_success", &tcp_pose_offset_async_success_));
 
 
   return command_interfaces;
@@ -1454,6 +1454,7 @@ hardware_interface::return_type URPositionHardwareInterface::perform_command_mod
              std::find(stop_modes_[0].begin(), stop_modes_[0].end(), StoppingInterface::STOP_DYNAMIC_FORCE_MODE) !=
                  stop_modes_[0].end()) {
     dynamic_path_force_mode_controller_running_ = false;
+    dynamic_force_mode_abort_ = 1.0;
     stop_force_mode(DYNAMIC_FORCE_MODE_GPIO);
   }
 
@@ -1553,6 +1554,7 @@ void URPositionHardwareInterface::start_force_mode(const std::string& force_mode
 
 void URPositionHardwareInterface::stop_force_mode(const std::string& force_mode_gpio)
 {
+  RCLCPP_INFO(rclcpp::get_logger("URPositionHardwareInterface"), "Stopping force mode %s", force_mode_gpio.c_str());
   DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_async_success_) = ur_driver_->endForceMode();
   DYNAMIC_OR_STANDARD_FORCE_MODE_VAR_COPY(force_mode_gpio, force_mode_disable_cmd_) = NO_NEW_CMD_;
 }

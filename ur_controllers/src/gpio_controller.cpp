@@ -110,6 +110,15 @@ controller_interface::InterfaceConfiguration GPIOController::command_interface_c
   config.names.emplace_back(tf_prefix + "force_mode_params/force_mode_params_gain_scaling");
   config.names.emplace_back(tf_prefix + "force_mode_params/force_mode_params_async_success");
 
+  // Force mode parameters
+  config.names.emplace_back(tf_prefix + "tcp_offset/pose.x");
+  config.names.emplace_back(tf_prefix + "tcp_offset/pose.y");
+  config.names.emplace_back(tf_prefix + "tcp_offset/pose.z");
+  config.names.emplace_back(tf_prefix + "tcp_offset/pose.rx");
+  config.names.emplace_back(tf_prefix + "tcp_offset/pose.ry");
+  config.names.emplace_back(tf_prefix + "tcp_offset/pose.rz");
+  config.names.emplace_back(tf_prefix + "tcp_offset/tcp_offset_async_success");
+
   return config;
 }
 
