@@ -536,6 +536,12 @@ bool GPIOController::setPayload(const ur_msgs::srv::SetPayload::Request::SharedP
   command_interfaces_[CommandInterfaces::PAYLOAD_COG_X].set_value(req->center_of_gravity.x);
   command_interfaces_[CommandInterfaces::PAYLOAD_COG_Y].set_value(req->center_of_gravity.y);
   command_interfaces_[CommandInterfaces::PAYLOAD_COG_Z].set_value(req->center_of_gravity.z);
+  command_interfaces_[CommandInterfaces::PAYLOAD_INERTIA_XX].set_value(req->inertia_matrix[0]);
+  command_interfaces_[CommandInterfaces::PAYLOAD_INERTIA_YY].set_value(req->inertia_matrix[1]);
+  command_interfaces_[CommandInterfaces::PAYLOAD_INERTIA_ZZ].set_value(req->inertia_matrix[2]);
+  command_interfaces_[CommandInterfaces::PAYLOAD_INERTIA_XY].set_value(req->inertia_matrix[3]);
+  command_interfaces_[CommandInterfaces::PAYLOAD_INERTIA_XZ].set_value(req->inertia_matrix[4]);
+  command_interfaces_[CommandInterfaces::PAYLOAD_INERTIA_YZ].set_value(req->inertia_matrix[5]);
 
   if (!waitForAsyncCommand(
           [&]() { return command_interfaces_[CommandInterfaces::PAYLOAD_ASYNC_SUCCESS].get_value(); })) {
