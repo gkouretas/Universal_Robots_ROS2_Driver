@@ -80,6 +80,7 @@ enum StoppingInterface
   STOP_PASSTHROUGH,
   STOP_FORCE_MODE,
   STOP_FREEDRIVE,
+  STOP_DYNAMIC_FORCE_MODE
 };
 
 // We define our own quaternion to use it as a buffer, since we need to pass pointers to the state
@@ -159,8 +160,8 @@ protected:
   void updateNonDoubleValues();
   void extractToolPose();
   void transformForceTorque();
-  void start_force_mode();
-  void stop_force_mode();
+  void start_force_mode(const std::string& force_mode_gpio);
+  void stop_force_mode(const std::string& force_mode_gpio);
   void check_passthrough_trajectory_controller();
   void trajectory_done_callback(urcl::control::TrajectoryResult result);
   bool has_accelerations(std::vector<std::array<double, 6>> accelerations);
@@ -251,13 +252,13 @@ protected:
 
   // payload stuff
   urcl::vector3d_t payload_center_of_gravity_;
+  urcl::vector6d_t payload_inertia_matrix_;
   double payload_mass_;
   double payload_async_success_;
 
   // force mode parameters
   urcl::vector6d_t force_mode_task_frame_;
   urcl::vector6d_t force_mode_selection_vector_;
-  urcl::vector6uint32_t force_mode_selection_vector_copy_;
   urcl::vector6d_t force_mode_wrench_;
   urcl::vector6d_t force_mode_limits_;
   double force_mode_type_;
@@ -267,8 +268,33 @@ protected:
   double force_mode_gain_scaling_;
 
   // dynamic force mode parameters
-  double force_mode_damping_dynamic_;
-  double force_mode_gain_scaling_dynamic_;
+  // TODO(george): can we just re-use standard force mode class vars?
+  // for now, thinking not since we would have to have two writers to
+  // a class var...
+  urcl::vector6d_t dynamic_force_mode_task_frame_;
+  urcl::vector6d_t dynamic_force_mode_selection_vector_;
+  urcl::vector6d_t dynamic_force_mode_wrench_;
+  urcl::vector6d_t dynamic_force_mode_limits_;
+  double dynamic_force_mode_type_;
+  double dynamic_force_mode_async_success_;
+  double dynamic_force_mode_disable_cmd_;
+  double dynamic_force_mode_damping_;
+  double dynamic_force_mode_gain_scaling_;
+
+  double dynamic_force_mode_abort_;
+  double dynamic_force_mode_transfer_state_;
+  double dynamic_force_mode_time_from_start_;
+
+  bool dynamic_path_force_mode_controller_running_;
+
+  // dynamic gains
+  double dynamic_force_mode_params_srv_damping_;
+  double dynamic_force_mode_params_srv_gain_scaling_;
+  double dynamic_force_mode_params_srv_async_success_;
+
+  // tcp pose offset
+  urcl::vector6d_t tcp_pose_offset_;
+  double tcp_pose_offset_async_success_;
 
   // copy of non double values
   std::array<double, 18> actual_dig_out_bits_copy_;
@@ -312,6 +338,7 @@ protected:
 
   const std::string PASSTHROUGH_GPIO = "trajectory_passthrough";
   const std::string FORCE_MODE_GPIO = "force_mode";
+  const std::string DYNAMIC_FORCE_MODE_GPIO = "dynamic_force_mode";
   const std::string FREEDRIVE_MODE_GPIO = "freedrive_mode";
 };
 }  // namespace ur_robot_driver

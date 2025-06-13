@@ -67,7 +67,6 @@ controller_interface::CallbackReturn SpeedScalingStateBroadcaster::on_init()
 
     RCLCPP_INFO(get_node()->get_logger(), "Loading UR SpeedScalingStateBroadcaster with tf_prefix: %s",
                 params_.tf_prefix.c_str());
-
   } catch (std::exception& e) {
     fprintf(stderr, "Exception thrown during init stage with message: %s \n", e.what());
     return controller_interface::CallbackReturn::ERROR;

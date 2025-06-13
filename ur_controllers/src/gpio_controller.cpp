@@ -87,6 +87,12 @@ controller_interface::InterfaceConfiguration GPIOController::command_interface_c
   config.names.emplace_back(tf_prefix + "payload/cog.x");
   config.names.emplace_back(tf_prefix + "payload/cog.y");
   config.names.emplace_back(tf_prefix + "payload/cog.z");
+  config.names.emplace_back(tf_prefix + "payload/inertia.xx");
+  config.names.emplace_back(tf_prefix + "payload/inertia.yy");
+  config.names.emplace_back(tf_prefix + "payload/inertia.zz");
+  config.names.emplace_back(tf_prefix + "payload/inertia.xy");
+  config.names.emplace_back(tf_prefix + "payload/inertia.xz");
+  config.names.emplace_back(tf_prefix + "payload/inertia.yz");
   config.names.emplace_back(tf_prefix + "payload/payload_async_success");
 
   // FTS sensor
@@ -103,6 +109,15 @@ controller_interface::InterfaceConfiguration GPIOController::command_interface_c
   config.names.emplace_back(tf_prefix + "force_mode_params/force_mode_params_damping");
   config.names.emplace_back(tf_prefix + "force_mode_params/force_mode_params_gain_scaling");
   config.names.emplace_back(tf_prefix + "force_mode_params/force_mode_params_async_success");
+
+  // Force mode parameters
+  config.names.emplace_back(tf_prefix + "tcp_offset/pose.x");
+  config.names.emplace_back(tf_prefix + "tcp_offset/pose.y");
+  config.names.emplace_back(tf_prefix + "tcp_offset/pose.z");
+  config.names.emplace_back(tf_prefix + "tcp_offset/pose.rx");
+  config.names.emplace_back(tf_prefix + "tcp_offset/pose.ry");
+  config.names.emplace_back(tf_prefix + "tcp_offset/pose.rz");
+  config.names.emplace_back(tf_prefix + "tcp_offset/tcp_offset_async_success");
 
   return config;
 }
@@ -326,6 +341,9 @@ ur_controllers::GPIOController::on_activate(const rclcpp_lifecycle::State& /*pre
     set_force_mode_params_srv_ = get_node()->create_service<ur_msgs::srv::SetForceModeParams>(
         "~/set_force_mode_params",
         std::bind(&GPIOController::setForceModeParams, this, std::placeholders::_1, std::placeholders::_2));
+    set_tcp_offset_srv_ = get_node()->create_service<ur_msgs::srv::SetTCPOffset>(
+        "~/set_tcp_offset",
+        std::bind(&GPIOController::setTCPOffset, this, std::placeholders::_1, std::placeholders::_2));
   } catch (...) {
     return LifecycleNodeInterface::CallbackReturn::ERROR;
   }
@@ -530,6 +548,12 @@ bool GPIOController::setPayload(const ur_msgs::srv::SetPayload::Request::SharedP
   command_interfaces_[CommandInterfaces::PAYLOAD_COG_X].set_value(req->center_of_gravity.x);
   command_interfaces_[CommandInterfaces::PAYLOAD_COG_Y].set_value(req->center_of_gravity.y);
   command_interfaces_[CommandInterfaces::PAYLOAD_COG_Z].set_value(req->center_of_gravity.z);
+  command_interfaces_[CommandInterfaces::PAYLOAD_INERTIA_XX].set_value(req->inertia_matrix[0]);
+  command_interfaces_[CommandInterfaces::PAYLOAD_INERTIA_YY].set_value(req->inertia_matrix[1]);
+  command_interfaces_[CommandInterfaces::PAYLOAD_INERTIA_ZZ].set_value(req->inertia_matrix[2]);
+  command_interfaces_[CommandInterfaces::PAYLOAD_INERTIA_XY].set_value(req->inertia_matrix[3]);
+  command_interfaces_[CommandInterfaces::PAYLOAD_INERTIA_XZ].set_value(req->inertia_matrix[4]);
+  command_interfaces_[CommandInterfaces::PAYLOAD_INERTIA_YZ].set_value(req->inertia_matrix[5]);
 
   if (!waitForAsyncCommand(
           [&]() { return command_interfaces_[CommandInterfaces::PAYLOAD_ASYNC_SUCCESS].get_value(); })) {
@@ -598,6 +622,46 @@ bool GPIOController::setForceModeParams(ur_msgs::srv::SetForceModeParams::Reques
     RCLCPP_INFO(get_node()->get_logger(), "Successfully sent force mode params");
   } else {
     RCLCPP_ERROR(get_node()->get_logger(), "Failed to send force mode params");
+    return false;
+  }
+
+  return true;
+}
+
+bool GPIOController::setTCPOffset(ur_msgs::srv::SetTCPOffset::Request::SharedPtr req,
+                                  ur_msgs::srv::SetTCPOffset::Response::SharedPtr resp)
+{
+  // reset success flag
+  command_interfaces_[CommandInterfaces::TCP_OFFSET_ASYNC_SUCCESS].set_value(ASYNC_WAITING);
+  // call the service in the hardware
+  command_interfaces_[CommandInterfaces::TCP_OFFSET_X].set_value(req->tcp_offset.position.x);
+  command_interfaces_[CommandInterfaces::TCP_OFFSET_Y].set_value(req->tcp_offset.position.y);
+  command_interfaces_[CommandInterfaces::TCP_OFFSET_Z].set_value(req->tcp_offset.position.z);
+  
+  double roll, pitch, yaw;
+  tf2::Quaternion quat_tf;
+  tf2::convert(req->tcp_offset.orientation, quat_tf);
+  tf2::Matrix3x3 rot_mat(quat_tf);
+  rot_mat.getRPY(roll, pitch, yaw);
+
+  command_interfaces_[CommandInterfaces::TCP_OFFSET_RX].set_value(roll);
+  command_interfaces_[CommandInterfaces::TCP_OFFSET_RY].set_value(pitch);
+  command_interfaces_[CommandInterfaces::TCP_OFFSET_RZ].set_value(yaw);
+  
+  if (!waitForAsyncCommand(
+          [&]() { return command_interfaces_[CommandInterfaces::TCP_OFFSET_ASYNC_SUCCESS].get_value(); })) {
+    RCLCPP_WARN(get_node()->get_logger(), "Could not verify that the TCP offset was set. (This might happen when "
+                                          "using the "
+                                          "mocked interface)");
+  }
+
+  resp->success =
+      static_cast<bool>(command_interfaces_[CommandInterfaces::TCP_OFFSET_ASYNC_SUCCESS].get_value());
+
+  if (resp->success) {
+    RCLCPP_INFO(get_node()->get_logger(), "Successfully sent TCP offset");
+  } else {
+    RCLCPP_ERROR(get_node()->get_logger(), "Failed to send TCP offset");
     return false;
   }
 

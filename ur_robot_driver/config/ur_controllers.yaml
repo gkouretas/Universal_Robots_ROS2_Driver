@@ -39,6 +39,9 @@ controller_manager:
     passthrough_trajectory_controller:
       type: ur_controllers/PassthroughTrajectoryController
 
+    dynamic_path_force_mode_controller:
+      type: ur_controllers/DynamicPathForceModeController
+
     ur_configuration_controller:
       type: ur_controllers/URConfigurationController
 
@@ -175,3 +178,8 @@ tcp_pose_broadcaster:
     pose_name: $(var tf_prefix)tcp_pose
     tf:
       child_frame_id: $(var tf_prefix)tool0_controller
+
+dynamic_path_force_mode_controller:
+  ros__parameters:
+    tf_prefix: "$(var tf_prefix)"
+    speed_scaling_interface_name: $(var tf_prefix)speed_scaling/speed_scaling_factor
