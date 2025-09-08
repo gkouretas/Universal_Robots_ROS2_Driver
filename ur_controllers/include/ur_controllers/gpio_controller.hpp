@@ -54,10 +54,14 @@
 #include "ur_msgs/srv/set_analog_output.hpp"
 #include "ur_msgs/srv/set_speed_slider_fraction.hpp"
 #include "ur_msgs/srv/set_payload.hpp"
+#include "ur_msgs/srv/set_force_mode_params.hpp"
+#include "ur_msgs/srv/set_tcp_offset.hpp"
 #include "rclcpp/time.hpp"
 #include "rclcpp/duration.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "gpio_controller_parameters.hpp"
+
+#include <tf2_ros/buffer.h>
 
 namespace ur_controllers
 {
@@ -75,12 +79,28 @@ enum CommandInterfaces
   PAYLOAD_COG_X = 27,
   PAYLOAD_COG_Y = 28,
   PAYLOAD_COG_Z = 29,
-  PAYLOAD_ASYNC_SUCCESS = 30,
-  ZERO_FTSENSOR_CMD = 31,
-  ZERO_FTSENSOR_ASYNC_SUCCESS = 32,
-  HAND_BACK_CONTROL_CMD = 33,
-  HAND_BACK_CONTROL_ASYNC_SUCCESS = 34,
-  ANALOG_OUTPUTS_DOMAIN = 35,
+  PAYLOAD_INERTIA_XX = 30,
+  PAYLOAD_INERTIA_YY = 31,
+  PAYLOAD_INERTIA_ZZ = 32,
+  PAYLOAD_INERTIA_XY = 33,
+  PAYLOAD_INERTIA_XZ = 34,
+  PAYLOAD_INERTIA_YZ = 35,
+  PAYLOAD_ASYNC_SUCCESS = 36,
+  ZERO_FTSENSOR_CMD = 37,
+  ZERO_FTSENSOR_ASYNC_SUCCESS = 38,
+  HAND_BACK_CONTROL_CMD = 39,
+  HAND_BACK_CONTROL_ASYNC_SUCCESS = 40,
+  ANALOG_OUTPUTS_DOMAIN = 41,
+  FORCE_MODE_PARAMS_DAMPING = 42,
+  FORCE_MODE_PARAMS_GAIN_SCALING = 43,
+  FORCE_MODE_PARAMS_ASYNC_SUCCESS = 44,
+  TCP_OFFSET_X = 45,
+  TCP_OFFSET_Y = 46,
+  TCP_OFFSET_Z = 47,
+  TCP_OFFSET_RX = 48,
+  TCP_OFFSET_RY = 49,
+  TCP_OFFSET_RZ = 50,
+  TCP_OFFSET_ASYNC_SUCCESS = 51
 };
 
 enum StateInterfaces
@@ -141,6 +161,13 @@ private:
 
   bool zeroFTSensor(std_srvs::srv::Trigger::Request::SharedPtr req, std_srvs::srv::Trigger::Response::SharedPtr resp);
 
+  bool setForceModeParams(ur_msgs::srv::SetForceModeParams::Request::SharedPtr req,
+                          ur_msgs::srv::SetForceModeParams::Response::SharedPtr resp);
+
+  
+  bool setTCPOffset(ur_msgs::srv::SetTCPOffset::Request::SharedPtr req,
+                    ur_msgs::srv::SetTCPOffset::Response::SharedPtr resp);
+
   void publishIO();
 
   void publishToolData();
@@ -169,6 +196,8 @@ protected:
   rclcpp::Service<ur_msgs::srv::SetAnalogOutput>::SharedPtr set_analog_output_srv_;
   rclcpp::Service<ur_msgs::srv::SetPayload>::SharedPtr set_payload_srv_;
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr tare_sensor_srv_;
+  rclcpp::Service<ur_msgs::srv::SetForceModeParams>::SharedPtr set_force_mode_params_srv_;
+  rclcpp::Service<ur_msgs::srv::SetTCPOffset>::SharedPtr set_tcp_offset_srv_;
 
   std::shared_ptr<rclcpp::Publisher<ur_msgs::msg::IOStates>> io_pub_;
   std::shared_ptr<rclcpp::Publisher<ur_msgs::msg::ToolDataMsg>> tool_data_pub_;

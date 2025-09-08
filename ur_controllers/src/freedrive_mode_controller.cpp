@@ -68,6 +68,20 @@ controller_interface::InterfaceConfiguration FreedriveModeController::command_in
   config.names.emplace_back(tf_prefix + "freedrive_mode/async_success");
   config.names.emplace_back(tf_prefix + "freedrive_mode/enable");
   config.names.emplace_back(tf_prefix + "freedrive_mode/abort");
+  config.names.emplace_back(tf_prefix + "freedrive_mode/params_vector_x");
+  config.names.emplace_back(tf_prefix + "freedrive_mode/params_vector_y");
+  config.names.emplace_back(tf_prefix + "freedrive_mode/params_vector_z");
+  config.names.emplace_back(tf_prefix + "freedrive_mode/params_vector_rx");
+  config.names.emplace_back(tf_prefix + "freedrive_mode/params_vector_ry");
+  config.names.emplace_back(tf_prefix + "freedrive_mode/params_vector_rz");
+  config.names.emplace_back(tf_prefix + "freedrive_mode/params_feature_pose_vector_x");
+  config.names.emplace_back(tf_prefix + "freedrive_mode/params_feature_pose_vector_y");
+  config.names.emplace_back(tf_prefix + "freedrive_mode/params_feature_pose_vector_z");
+  config.names.emplace_back(tf_prefix + "freedrive_mode/params_feature_pose_vector_rx");
+  config.names.emplace_back(tf_prefix + "freedrive_mode/params_feature_pose_vector_ry");
+  config.names.emplace_back(tf_prefix + "freedrive_mode/params_feature_pose_vector_rz");
+  config.names.emplace_back(tf_prefix + "freedrive_mode/params_feature_constant_base");
+  config.names.emplace_back(tf_prefix + "freedrive_mode/params_feature_constant_tool");
 
   return config;
 }
@@ -88,6 +102,15 @@ ur_controllers::FreedriveModeController::on_configure(const rclcpp_lifecycle::St
   enable_freedrive_mode_sub_ = get_node()->create_subscription<std_msgs::msg::Bool>(
       "~/enable_freedrive_mode", 10,
       std::bind(&FreedriveModeController::freedrive_cmd_callback, this, std::placeholders::_1));
+
+  // Freedrive parameter service
+  try {
+    set_freedrive_params_srv_ = get_node()->create_service<ur_msgs::srv::SetFreedriveParams>(
+        "~/set_freedrive_params",
+        std::bind(&FreedriveModeController::set_freedrive_params, this, std::placeholders::_1, std::placeholders::_2));
+  } catch (...) {
+    return controller_interface::CallbackReturn::ERROR;
+  }
 
   timer_started_ = false;
 
@@ -114,7 +137,7 @@ ur_controllers::FreedriveModeController::on_activate(const rclcpp_lifecycle::Sta
 {
   change_requested_ = false;
   freedrive_active_ = false;
-  async_state_ = std::numeric_limits<double>::quiet_NaN();
+  async_state_ = NO_VAL;
 
   first_log_ = false;
   logging_thread_running_ = true;
@@ -201,6 +224,58 @@ controller_interface::return_type ur_controllers::FreedriveModeController::updat
       } else {
         RCLCPP_INFO(get_node()->get_logger(), "Received command to start Freedrive Mode.");
 
+        const auto freedrive_parameters = freedrive_params_buffer_.readFromRT();
+
+        if (freedrive_parameters->free_axes_.has_value()) {
+          command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_VECTOR_X].set_value(
+              (freedrive_parameters->free_axes_.value()[0]) ? 1.0 : 0.0);
+          command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_VECTOR_Y].set_value(
+              (freedrive_parameters->free_axes_.value()[1]) ? 1.0 : 0.0);
+          command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_VECTOR_Z].set_value(
+              (freedrive_parameters->free_axes_.value()[2]) ? 1.0 : 0.0);
+          command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_VECTOR_RX].set_value(
+              (freedrive_parameters->free_axes_.value()[3]) ? 1.0 : 0.0);
+          command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_VECTOR_RY].set_value(
+              (freedrive_parameters->free_axes_.value()[4]) ? 1.0 : 0.0);
+          command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_VECTOR_RZ].set_value(
+              (freedrive_parameters->free_axes_.value()[5]) ? 1.0 : 0.0);
+        }
+
+        if (freedrive_parameters->feature_constant_.has_value()) {
+          switch (freedrive_parameters->feature_constant_.value()) {
+            case FreedriveModeParamaters::FreedriveModeConstants::TOOL:
+              command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_CONSTANT_BASE].set_value(NO_VAL);
+              command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_CONSTANT_TOOL].set_value(1.0);
+              break;
+            case FreedriveModeParamaters::FreedriveModeConstants::BASE:
+              command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_CONSTANT_BASE].set_value(1.0);
+              command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_CONSTANT_TOOL].set_value(NO_VAL);
+              break;
+            default:
+              // Assume custom vector
+              command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_CONSTANT_BASE].set_value(NO_VAL);
+              command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_CONSTANT_TOOL].set_value(NO_VAL);
+              break;
+          }
+        } else if (freedrive_parameters->feature_vector_.has_value()) {
+          // Set constants to null
+          command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_CONSTANT_BASE].set_value(NO_VAL);
+          command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_CONSTANT_TOOL].set_value(NO_VAL);
+
+          command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_POSE_VECTOR_X].set_value(
+              freedrive_parameters->feature_vector_.value()[0]);
+          command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_POSE_VECTOR_Y].set_value(
+              freedrive_parameters->feature_vector_.value()[1]);
+          command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_POSE_VECTOR_Z].set_value(
+              freedrive_parameters->feature_vector_.value()[2]);
+          command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_POSE_VECTOR_RX].set_value(
+              freedrive_parameters->feature_vector_.value()[3]);
+          command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_POSE_VECTOR_RY].set_value(
+              freedrive_parameters->feature_vector_.value()[4]);
+          command_interfaces_[CommandInterfaces::FREEDRIVE_MODE_PARAMS_FEATURE_POSE_VECTOR_RZ].set_value(
+              freedrive_parameters->feature_vector_.value()[5]);
+        }
+
         // Set command interface to enable
         enable_command_interface_->get().set_value(1.0);
 
@@ -251,6 +326,59 @@ void FreedriveModeController::freedrive_cmd_callback(const std_msgs::msg::Bool::
   if (freedrive_sub_timer_) {
     freedrive_sub_timer_->reset();
   }
+}
+
+bool FreedriveModeController::set_freedrive_params(const ur_msgs::srv::SetFreedriveParams::Request::SharedPtr req,
+                                                   ur_msgs::srv::SetFreedriveParams::Response::SharedPtr resp)
+{
+  // Reject if controller is not active
+  if (get_node()->get_current_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE && freedrive_active_) {
+    RCLCPP_ERROR(get_node()->get_logger(), "Can't accept new requests. Controller is running and freedrive is already "
+                                           "active.");
+    resp->success = false;
+    return false;
+  }
+
+  FreedriveModeController::FreedriveModeParamaters freedrive_mode_parameters;
+  freedrive_mode_parameters.free_axes_ = req->free_axes;
+
+  switch (req->type) {
+    case ur_msgs::srv::SetFreedriveParams::Request::TYPE_POSE:
+      freedrive_mode_parameters.feature_constant_.reset();
+      freedrive_mode_parameters.feature_vector_ = req->feature_vector;
+      break;
+    case ur_msgs::srv::SetFreedriveParams::Request::TYPE_STRING:
+      switch (req->feature_constant) {
+        case ur_msgs::srv::SetFreedriveParams::Request::FEATURE_TOOL:
+          freedrive_mode_parameters.feature_vector_.reset();
+          freedrive_mode_parameters.feature_constant_ =
+              FreedriveModeController::FreedriveModeParamaters::FreedriveModeConstants::TOOL;
+          break;
+        case ur_msgs::srv::SetFreedriveParams::Request::FEATURE_BASE:
+          freedrive_mode_parameters.feature_vector_.reset();
+          freedrive_mode_parameters.feature_constant_ =
+              FreedriveModeController::FreedriveModeParamaters::FreedriveModeConstants::BASE;
+          break;
+        default:
+          freedrive_mode_parameters.feature_constant_.reset();
+          freedrive_mode_parameters.feature_vector_.reset();
+          RCLCPP_WARN(get_node()->get_logger(), "Invalid feature ID, falling back to default.");
+          break;
+      }
+      break;
+    default:
+      freedrive_mode_parameters.feature_constant_.reset();
+      freedrive_mode_parameters.feature_vector_.reset();
+      RCLCPP_WARN(get_node()->get_logger(), "Invalid request feature type, falling back to default.");
+      break;
+  }
+
+  freedrive_params_buffer_.writeFromNonRT(freedrive_mode_parameters);
+
+  RCLCPP_INFO(get_node()->get_logger(), "Freedrive params set internally.");
+  resp->success = true;
+
+  return true;
 }
 
 void FreedriveModeController::start_timer()
